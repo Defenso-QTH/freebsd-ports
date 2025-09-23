@@ -1,0 +1,38 @@
+From 23e0832d6d7be2d3c713f9390c060b6f1c48bf36 Mon Sep 17 00:00:00 2001
+From: Philipp Stanner <phasta@kernel.org>
+Date: Tue, 18 Feb 2025 13:41:50 +0100
+Subject: [PATCH] drm/sched: Fix preprocessor guard
+
+When writing the header guard for gpu_scheduler_trace.h, a typo,
+apparently, occurred.
+
+Fix the typo and document the scope of the guard.
+
+Fixes: 353da3c520b4 ("drm/amdgpu: add tracepoint for scheduler (v2)")
+Reviewed-by: Tvrtko Ursulin <tvrtko.ursulin@igalia.com>
+Signed-off-by: Philipp Stanner <phasta@kernel.org>
+Link: https://patchwork.freedesktop.org/patch/msgid/20250218124149.118002-2-phasta@kernel.org
+---
+ drivers/gpu/drm/scheduler/gpu_scheduler_trace.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+--- drivers/gpu/drm/scheduler/gpu_scheduler_trace.h	2025-08-26 13:55:55.553705000 -0700
++++ drivers/gpu/drm/scheduler/gpu_scheduler_trace.h	2025-08-28 23:18:28.210642000 -0700
+@@ -21,7 +21,7 @@
+  *
+  */
+ 
+-#if !defined(_GPU_SCHED_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
++#if !defined(_GPU_SCHED_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
+ #define _GPU_SCHED_TRACE_H_
+ 
+ #ifdef __FreeBSD__
+@@ -130,7 +130,7 @@ TRACE_EVENT(drm_sched_job_wait_dep,
+ 		      __entry->seqno)
+ );
+ 
+-#endif /* __FreeBSD__ */
++#endif /* _GPU_SCHED_TRACE_H_ __FreeBSD__ */
+ #endif
+ 
+ /* This part must be outside protection */

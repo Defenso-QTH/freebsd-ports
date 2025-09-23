@@ -1,0 +1,47 @@
+From dce6eaae1cac050b6c3006126ccc3070c1c1c32d Mon Sep 17 00:00:00 2001
+From: Ed Maste <emaste@FreeBSD.org>
+Date: Mon, 8 Sep 2025 14:10:08 -0400
+Subject: [PATCH] drm/i915: Additional local_irq_en/disable conversions
+
+Use preempt_en/disable where upstream calls local_irq_en/disable in
+intel_pipe_update_start, intel_pipe_update_end, and intel_vblank_evade
+as already done elsewhere in drm/i915.  There are additional cases that
+need investigation but this is now usable on my 11th gen Intel laptop.
+
+Closes: #375
+---
+ drivers/gpu/drm/i915/display/intel_crtc.c   | 6 +++++-
+ drivers/gpu/drm/i915/display/intel_vblank.c | 4 ++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git drivers/gpu/drm/i915/display/intel_crtc.c drivers/gpu/drm/i915/display/intel_crtc.c
+index b86afae5d0d..fc86d275e66 100644
+--- drivers/gpu/drm/i915/display/intel_crtc.c
++++ drivers/gpu/drm/i915/display/intel_crtc.c
+@@ -514,6 +514,8 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
+ 
+ #ifdef __linux__
+ 	local_irq_disable();
++#elif defined(__FreeBSD__)
++	preempt_disable();
+ #endif
+ 
+ 	crtc->debug.min_vbl = evade.min;
+@@ -535,7 +537,7 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
+ #ifdef __linux__
+ 	local_irq_disable();
+ #elif defined(__FreeBSD__)
+-	return;
++	preempt_disable();
+ #endif
+ }
+ 
+@@ -640,6 +642,8 @@ void intel_pipe_update_end(struct intel_atomic_state *state,
+ 
+ #ifdef __linux__
+ 	local_irq_enable();
++#elif defined(__FreeBSD__)
++	preempt_enable();
+ #endif
+ 
+ 	if (intel_vgpu_active(dev_priv))

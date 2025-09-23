@@ -1,0 +1,367 @@
+From a19de9dbb4d293c064b02cec8ef134cb9812d639 Mon Sep 17 00:00:00 2001
+From: Srinivasan Shanmugam <srinivasan.shanmugam@amd.com>
+Date: Thu, 13 Jul 2023 17:10:57 +0530
+Subject: [PATCH] drm/amd/display: Clean up style problems in amdgpu_dm_hdcp.c
+
+Conform to Linux kernel coding style.
+
+And promote sysfs entry for set/get srm to kdoc.
+
+Suggested-by: Rodrigo Siqueira <Rodrigo.Siqueira@amd.com>
+Cc: Rodrigo Siqueira <Rodrigo.Siqueira@amd.com>
+Cc: Aurabindo Pillai <aurabindo.pillai@amd.com>
+Signed-off-by: Srinivasan Shanmugam <srinivasan.shanmugam@amd.com>
+Reviewed-by: Aurabindo Pillai <aurabindo.pillai@amd.com>
+Signed-off-by: Alex Deucher <alexander.deucher@amd.com>
+---
+ .../amd/display/amdgpu_dm/amdgpu_dm_hdcp.c    | 185 +++++++++---------
+ 1 file changed, 89 insertions(+), 96 deletions(-)
+
+--- drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_hdcp.c.orig	2025-09-05 02:02:37.615332000 -0700
++++ drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_hdcp.c	2025-09-05 03:13:51.786005000 -0700
+@@ -42,7 +42,8 @@ lp_write_i2c(void *handle, uint32_t address, const uin
+ 
+ 	struct dc_link *link = handle;
+ 	struct i2c_payload i2c_payloads[] = {{true, address, size, (void *)data} };
+-	struct i2c_command cmd = {i2c_payloads, 1, I2C_COMMAND_ENGINE_HW, link->dc->caps.i2c_speed_in_khz};
++	struct i2c_command cmd = {i2c_payloads, 1, I2C_COMMAND_ENGINE_HW,
++				  link->dc->caps.i2c_speed_in_khz};
+ 
+ 	return dm_helpers_submit_i2c(link->ctx, link, &cmd);
+ }
+@@ -52,8 +53,10 @@ lp_read_i2c(void *handle, uint32_t address, uint8_t of
+ {
+ 	struct dc_link *link = handle;
+ 
+-	struct i2c_payload i2c_payloads[] = {{true, address, 1, &offset}, {false, address, size, data} };
+-	struct i2c_command cmd = {i2c_payloads, 2, I2C_COMMAND_ENGINE_HW, link->dc->caps.i2c_speed_in_khz};
++	struct i2c_payload i2c_payloads[] = {{true, address, 1, &offset},
++					     {false, address, size, data} };
++	struct i2c_command cmd = {i2c_payloads, 2, I2C_COMMAND_ENGINE_HW,
++				  link->dc->caps.i2c_speed_in_khz};
+ 
+ 	return dm_helpers_submit_i2c(link->ctx, link, &cmd);
+ }
+@@ -96,13 +99,12 @@ static uint8_t *psp_get_srm(struct psp_context *psp, u
+ 	*srm_version = hdcp_cmd->out_msg.hdcp_get_srm.srm_version;
+ 	*srm_size = hdcp_cmd->out_msg.hdcp_get_srm.srm_buf_size;
+ 
+-
+ 	return hdcp_cmd->out_msg.hdcp_get_srm.srm_buf;
+ }
+ 
+-static int psp_set_srm(struct psp_context *psp, uint8_t *srm, uint32_t srm_size, uint32_t *srm_version)
++static int psp_set_srm(struct psp_context *psp,
++		       u8 *srm, uint32_t srm_size, uint32_t *srm_version)
+ {
+-
+ 	struct ta_hdcp_shared_memory *hdcp_cmd;
+ 
+ 	if (!psp->hdcp_context.context.initialized) {
+@@ -119,8 +121,8 @@ static int psp_set_srm(struct psp_context *psp, uint8_
+ 
+ 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+ 
+-	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS || hdcp_cmd->out_msg.hdcp_set_srm.valid_signature != 1 ||
+-	    hdcp_cmd->out_msg.hdcp_set_srm.srm_version == PSP_SRM_VERSION_MAX)
++	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS ||
++	    hdcp_cmd->out_msg.hdcp_set_srm.valid_signature != 1 ||
+ 		return -EINVAL;
+ 
+ 	*srm_version = hdcp_cmd->out_msg.hdcp_set_srm.srm_version;
+@@ -150,7 +152,6 @@ static void link_lock(struct hdcp_workqueue *work, boo
+ 
+ static void link_lock(struct hdcp_workqueue *work, bool lock)
+ {
+-
+ 	int i = 0;
+ 
+ 	for (i = 0; i < work->max_link; i++) {
+@@ -160,6 +161,7 @@ static void link_lock(struct hdcp_workqueue *work, boo
+ 			mutex_unlock(&work[i].mutex);
+ 	}
+ }
++
+ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
+ 			 unsigned int link_index,
+ 			 struct amdgpu_dm_connector *aconnector,
+@@ -219,8 +222,8 @@ static void hdcp_remove_display(struct hdcp_workqueue 
+ }
+ 
+ static void hdcp_remove_display(struct hdcp_workqueue *hdcp_work,
+-			 unsigned int link_index,
+-			 struct amdgpu_dm_connector *aconnector)
++			 	unsigned int link_index,
++			 	struct amdgpu_dm_connector *aconnector)
+ {
+ 	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
+ 	struct drm_connector_state *conn_state = aconnector->base.state;
+@@ -238,7 +241,8 @@ static void hdcp_remove_display(struct hdcp_workqueue 
+ 		conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+ 
+ 		DRM_DEBUG_DRIVER("[HDCP_DM] display %d, CP 2 -> 1, type %u, DPMS %u\n",
+-			 aconnector->base.index, conn_state->hdcp_content_type, aconnector->base.dpms);
++			 aconnector->base.index, conn_state->hdcp_content_type,
++			 aconnector->base.dpms);
+ 	}
+ 
+ 	mod_hdcp_remove_display(&hdcp_w->hdcp, aconnector->base.index, &hdcp_w->output);
+@@ -246,6 +250,7 @@ static void hdcp_remove_display(struct hdcp_workqueue 
+ 	process_output(hdcp_w);
+ 	mutex_unlock(&hdcp_w->mutex);
+ }
++
+ void hdcp_reset_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index)
+ {
+ 	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
+@@ -274,15 +279,12 @@ void hdcp_handle_cpirq(struct hdcp_workqueue *hdcp_wor
+ 	schedule_work(&hdcp_w->cpirq_work);
+ }
+ 
+-
+-
+-
+ static void event_callback(struct work_struct *work)
+ {
+ 	struct hdcp_workqueue *hdcp_work;
+ 
+ 	hdcp_work = container_of(to_delayed_work(work), struct hdcp_workqueue,
+-				      callback_dwork);
++			         callback_dwork);
+ 
+ 	mutex_lock(&hdcp_work->mutex);
+ 
+@@ -294,16 +296,15 @@ static void event_callback(struct work_struct *work)
+ 	process_output(hdcp_work);
+ 
+ 	mutex_unlock(&hdcp_work->mutex);
+-
+-
+ }
+ 
+ static void event_property_update(struct work_struct *work)
+ {
+-	struct hdcp_workqueue *hdcp_work = container_of(work, struct hdcp_workqueue, property_update_work);
++	struct hdcp_workqueue *hdcp_work = container_of(work, struct hdcp_workqueue,
++							property_update_work);
+ 
+-//	struct amdgpu_dm_connector *aconnector = hdcp_work->aconnector;
+-	struct amdgpu_dm_connector *aconnector = NULL;
++//	struct amdgpu_dm_connector *aconnector = hdcp_work->aconnector;
++	struct amdgpu_dm_connector *aconnector = NULL;
+ 	struct drm_device *dev;
+ 	long ret;
+ 	unsigned int conn_index;
+@@ -338,11 +339,10 @@ static void event_property_update(struct work_struct *
+ 		mutex_lock(&hdcp_work->mutex);
+ 
+ 		if (conn_state->commit) {
+-			ret = wait_for_completion_interruptible_timeout(
+-				&conn_state->commit->hw_done, 10 * HZ);
++			ret = wait_for_completion_interruptible_timeout(&conn_state->commit->hw_done,
++									10 * HZ);
+ 			if (ret == 0) {
+-				DRM_ERROR(
+-					"HDCP state unknown! Setting it to DESIRED");
++				DRM_ERROR("HDCP state unknown! Setting it to DESIRED");
+ 				hdcp_work->encryption_status[conn_index] =
+ 					MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
+ 			}
+@@ -355,9 +355,8 @@ static void event_property_update(struct work_struct *
+ 				MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON) {
+ 
+ 				DRM_DEBUG_DRIVER("[HDCP_DM] DRM_MODE_CONTENT_PROTECTION_ENABLED\n");
+-				drm_hdcp_update_content_protection(
+-					connector,
+-					DRM_MODE_CONTENT_PROTECTION_ENABLED);
++				drm_hdcp_update_content_protection(connector,
++								   DRM_MODE_CONTENT_PROTECTION_ENABLED);
+ 			} else if (conn_state->hdcp_content_type ==
+ 					DRM_MODE_HDCP_CONTENT_TYPE1 &&
+ 					hdcp_work->encryption_status[conn_index] ==
+@@ -368,8 +367,8 @@ static void event_property_update(struct work_struct *
+ 			}
+ 		} else {
+ 			DRM_DEBUG_DRIVER("[HDCP_DM] DRM_MODE_CONTENT_PROTECTION_DESIRED\n");
+-			drm_hdcp_update_content_protection(
+-				connector, DRM_MODE_CONTENT_PROTECTION_DESIRED);
++			drm_hdcp_update_content_protection(connector,
++							   DRM_MODE_CONTENT_PROTECTION_DESIRED);
+ 
+ 		}
+ 		mutex_unlock(&hdcp_work->mutex);
+@@ -409,15 +408,16 @@ static void event_property_validate(struct work_struct
+ 				       &query);
+ 
+ 		DRM_DEBUG_DRIVER("[HDCP_DM] disp %d, connector->CP %u, (query, work): (%d, %d)\n",
+-			aconnector->base.index,
+-			aconnector->base.state->content_protection,
+-			query.encryption_status,
+-			hdcp_work->encryption_status[conn_index]);
++				 aconnector->base.index,
++				 aconnector->base.state->content_protection,
++				 query.encryption_status,
++				 hdcp_work->encryption_status[conn_index]);
+ 
+ 		if (query.encryption_status !=
+ 		    hdcp_work->encryption_status[conn_index]) {
+ 			DRM_DEBUG_DRIVER("[HDCP_DM] encryption_status change from %x to %x\n",
+-				hdcp_work->encryption_status[conn_index], query.encryption_status);
++					 hdcp_work->encryption_status[conn_index],
++					 query.encryption_status);
+ 
+ 			hdcp_work->encryption_status[conn_index] =
+ 				query.encryption_status;
+@@ -436,8 +436,8 @@ static void event_watchdog_timer(struct work_struct *w
+ 	struct hdcp_workqueue *hdcp_work;
+ 
+ 	hdcp_work = container_of(to_delayed_work(work),
+-				      struct hdcp_workqueue,
+-				      watchdog_timer_dwork);
++				 struct hdcp_workqueue,
++				 watchdog_timer_dwork);
+ 
+ 	mutex_lock(&hdcp_work->mutex);
+ 
+@@ -450,7 +450,6 @@ static void event_watchdog_timer(struct work_struct *w
+ 	process_output(hdcp_work);
+ 
+ 	mutex_unlock(&hdcp_work->mutex);
+-
+ }
+ 
+ static void event_cpirq(struct work_struct *work)
+@@ -466,10 +465,8 @@ static void event_cpirq(struct work_struct *work)
+ 	process_output(hdcp_work);
+ 
+ 	mutex_unlock(&hdcp_work->mutex);
+-
+ }
+ 
+-
+ void hdcp_destroy(struct kobject *kobj, struct hdcp_workqueue *hdcp_work)
+ {
+ 	int i = 0;
+@@ -486,10 +483,8 @@ void hdcp_destroy(struct kobject *kobj, struct hdcp_wo
+ 	kfree(hdcp_work);
+ }
+ 
+-
+ static bool enable_assr(void *handle, struct dc_link *link)
+ {
+-
+ 	struct hdcp_workqueue *hdcp_work = handle;
+ 	struct mod_hdcp hdcp = hdcp_work->hdcp;
+ 	struct psp_context *psp = hdcp.config.psp.handle;
+@@ -507,7 +502,8 @@ static bool enable_assr(void *handle, struct dc_link *
+ 	memset(dtm_cmd, 0, sizeof(struct ta_dtm_shared_memory));
+ 
+ 	dtm_cmd->cmd_id = TA_DTM_COMMAND__TOPOLOGY_ASSR_ENABLE;
+-	dtm_cmd->dtm_in_message.topology_assr_enable.display_topology_dig_be_index = link->link_enc_hw_inst;
++	dtm_cmd->dtm_in_message.topology_assr_enable.display_topology_dig_be_index =
++		link->link_enc_hw_inst;
+ 	dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
+ 
+ 	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
+@@ -549,7 +545,7 @@ static void update_config(void *handle, struct cp_psp_
+ 	else if (aconnector->dc_em_sink)
+ 		sink = aconnector->dc_em_sink;
+ 
+-	if (sink != NULL)
++	if (sink)
+ 		link->mode = mod_hdcp_signal_type_to_operation_mode(sink->sink_signal);
+ 
+ 	display->controller = CONTROLLER_ID_D0 + config->otg_inst;
+@@ -594,8 +594,8 @@ static void update_config(void *handle, struct cp_psp_
+  * sysfs interface doesn't tell us the size we will get so we are sending partial SRMs to psp and on
+  * the last call we will send the full SRM. PSP will fail on every call before the last.
+  *
+- * This means we don't know if the SRM is good until the last call. And because of this limitation we
+- * cannot throw errors early as it will stop the kernel from writing to sysfs
++ * This means we don't know if the SRM is good until the last call. And because of this
++ * limitation we cannot throw errors early as it will stop the kernel from writing to sysfs
+  *
+  * Example 1:
+  * 	Good SRM size = 5096
+@@ -628,7 +628,8 @@ static void update_config(void *handle, struct cp_psp_
+  * 	-if we try to "1. SET" a newer version and PSP rejects it. That means the format is
+  * 	incorrect/corrupted and we should correct our SRM by getting it from PSP
+  */
+-static ssize_t srm_data_write(struct file *filp, struct kobject *kobj, struct bin_attribute *bin_attr, char *buffer,
++static ssize_t srm_data_write(struct file *filp, struct kobject *kobj,
++			      struct bin_attribute *bin_attr, char *buffer,
+ 			      loff_t pos, size_t count)
+ {
+ 	struct hdcp_workqueue *work;
+@@ -646,13 +647,13 @@ static ssize_t srm_data_write(struct file *filp, struc
+ 		work->srm_version = srm_version;
+ 	}
+ 
+-
+ 	link_lock(work, false);
+ 
+ 	return count;
+ }
+ 
+-static ssize_t srm_data_read(struct file *filp, struct kobject *kobj, struct bin_attribute *bin_attr, char *buffer,
++static ssize_t srm_data_read(struct file *filp, struct kobject *kobj,
++			     struct bin_attribute *bin_attr, char *buffer,
+ 			     loff_t pos, size_t count)
+ {
+ 	struct hdcp_workqueue *work;
+@@ -695,8 +696,8 @@ ret:
+  * 	needs to use HDCP, the version in PSP should be SRM(ver 2). So SRM should be persistent
+  * 	across boot/reboots/suspend/resume/shutdown
+  *
+- * Currently when the system goes down (suspend/shutdown) the SRM is cleared from PSP. For HDCP we need
+- * to make the SRM persistent.
++ * Currently when the system goes down (suspend/shutdown) the SRM is cleared from PSP. For HDCP
++ * we need to make the SRM persistent.
+  *
+  * -PSP owns the checking of SRM but doesn't have the ability to store it in a non-volatile memory.
+  * -The kernel cannot write to the file systems.
+@@ -716,10 +717,9 @@ static const struct bin_attribute data_attr = {
+ 	.read = srm_data_read,
+ };
+ 
+-
+-struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct cp_psp *cp_psp, struct dc *dc)
++struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev,
++					     struct cp_psp *cp_psp, struct dc *dc)
+ {
+-
+ 	int max_caps = dc->caps.max_links;
+ 	struct hdcp_workqueue *hdcp_work;
+ 	int i = 0;
+@@ -728,14 +728,16 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct am
+ 	if (ZERO_OR_NULL_PTR(hdcp_work))
+ 		return NULL;
+ 
+-	hdcp_work->srm = kcalloc(PSP_HDCP_SRM_FIRST_GEN_MAX_SIZE, sizeof(*hdcp_work->srm), GFP_KERNEL);
++	hdcp_work->srm = kcalloc(PSP_HDCP_SRM_FIRST_GEN_MAX_SIZE,
++				 sizeof(*hdcp_work->srm), GFP_KERNEL);
+ 
+-	if (hdcp_work->srm == NULL)
++	if (!hdcp_work->srm)
+ 		goto fail_alloc_context;
+ 
+-	hdcp_work->srm_temp = kcalloc(PSP_HDCP_SRM_FIRST_GEN_MAX_SIZE, sizeof(*hdcp_work->srm_temp), GFP_KERNEL);
++	hdcp_work->srm_temp = kcalloc(PSP_HDCP_SRM_FIRST_GEN_MAX_SIZE,
++				      sizeof(*hdcp_work->srm_temp), GFP_KERNEL);
+ 
+-	if (hdcp_work->srm_temp == NULL)
++	if (!hdcp_work->srm_temp)
+ 		goto fail_alloc_context;
+ 
+ 	hdcp_work->max_link = max_caps;
+@@ -788,10 +790,4 @@ fail_alloc_context:
+ 	kfree(hdcp_work);
+ 
+ 	return NULL;
+-
+-
+-
+ }
+-
+-
+-
