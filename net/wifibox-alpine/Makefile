@@ -1,5 +1,6 @@
 PORTNAME=	wifibox-alpine
 PORTVERSION=	20250924
+PORTREVISION=	1
 CATEGORIES=	net
 
 MAINTAINER=	pali.gabor@gmail.com
@@ -489,6 +490,14 @@ post-install:
 .if ${PORT_OPTIONS:MAPP_ACCESS_POINT} && ${PORT_OPTIONS:MUDS_PASSTHRU}
 	${MKDIR} ${STAGEDIR}/var/run/hostapd
 .endif
+	${MV} ${STAGEDIR}${PREFIX}/share/wifibox/grub.cfg \
+		${STAGEDIR}${PREFIX}/share/wifibox/grub.cfg.sample
+	${MKDIR} ${STAGEDIR}${PREFIX}/libexec/wifibox
+	${INSTALL_SCRIPT} ${FILESDIR}/wifibox-ath11k-setup \
+		${STAGEDIR}${PREFIX}/libexec/wifibox/
+	${MKDIR} ${STAGEDIR}${PREFIX}/share/doc/wifibox-alpine
+	${INSTALL_DATA} ${FILESDIR}/QCNFA765.md \
+		${STAGEDIR}${PREFIX}/share/doc/wifibox-alpine/
 
 WRKSRC=		${WRKSRC_scripts}
 MAKE_ARGS+=	VERSION=${PORTVERSION} \

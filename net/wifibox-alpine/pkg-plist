@@ -13,15 +13,19 @@
 %%XX_MDNS%%@sample(,,640) etc/wifibox/appliance/mdnsd-services.conf.sample
 %%XX_FORWARDING%%@sample(,,640) etc/wifibox/appliance/forwarding.conf.sample
 etc/wifibox/app_config
+libexec/wifibox/wifibox-ath11k-setup
+share/doc/wifibox-alpine/QCNFA765.md
 share/man/man5/wifibox-alpine.5.gz
 share/wifibox/disk.img
-share/wifibox/grub.cfg
+@sample share/wifibox/grub.cfg.sample
 share/wifibox/vmlinuz
 /var/run/wifibox/appliance/lock
 /var/run/wifibox/appliance/run
 /var/run/wifibox/appliance/spool/cron/crontabs
 /var/run/wifibox/appliance/spool/mail
 %%APP_ACCESS_POINT%%%%UDS_PASSTHRU%%@dir /var/run/hostapd
+@dir libexec/wifibox
+@dir share/doc/wifibox-alpine
 @dir /var/run/wifibox/appliance/cache/apk
 @dir /var/run/wifibox/appliance/cache/misc
 @dir /var/run/wifibox/appliance/cache

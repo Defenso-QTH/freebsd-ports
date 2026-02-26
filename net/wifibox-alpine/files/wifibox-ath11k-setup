@@ -1,0 +1,270 @@
+#!/bin/sh
+#
+# wifibox-ath11k-setup - One-time MSI bootstrap for Qualcomm QCNFA765 / WCN6855
+#
+# The ath11k_pci driver reads MSI address/data from the PCI configuration space.
+# Under bhyve PCI passthrough the configuration space reflects guest-virtual values,
+# so the firmware programs interrupts at addresses the host cannot deliver.  The
+# linux-lts kernel shipped in wifibox-alpine adds two module parameters:
+#
+#   ath11k_pci.host_msi_vector_addr  (ulong)
+#   ath11k_pci.host_msi_vector_data  (uint)
+#
+# When non-zero, the driver uses these instead of querying the config space.
+# This script detects the correct host-physical values and injects them into
+# /usr/local/share/wifibox/grub.cfg, then restarts wifibox.
+#
+# Usage: wifibox-ath11k-setup [--force]
+#   --force  Remove existing MSI parameters and re-detect (for suspend/resume).
+#
+# Must be run as root.
+
+PREFIX="${PREFIX:-/usr/local}"
+BHYVE_CONF="${PREFIX}/etc/wifibox/bhyve.conf"
+GRUB_CFG="${PREFIX}/share/wifibox/grub.cfg"
+MSI_CAP_ID=5		# PCI MSI capability ID
+WAIT_MSI=30		# seconds to wait for ath11k_pci to enable MSI
+WAIT_IFACE=10		# seconds to wait for wifibox network interface
+FORCE=0
+
+err()  { echo "ERROR: $*" >&2; exit 1; }
+info() { echo "==> $*"; }
+warn() { echo "WARNING: $*" >&2; }
+
+# ---- argument parsing ----
+
+for _arg; do
+	case ${_arg} in
+	--force)	FORCE=1 ;;
+	*)		err "Unknown argument: ${_arg}" ;;
+	esac
+done
+
+# ---- sanity checks ----
+
+[ "$(id -u)" -eq 0 ] || err "Must be run as root"
+[ -f "${BHYVE_CONF}" ] || err "bhyve.conf not found: ${BHYVE_CONF}"
+[ -f "${GRUB_CFG}" ] || err "grub.cfg not found: ${GRUB_CFG}"
+
+# ---- PCI config-space helpers ----
+#
+# pciconf -r output (FreeBSD): bare hex digits, no 0x prefix, zero-padded.
+#   -b  byte    -> 2 hex digits (e.g. "34")
+#   -h  hword   -> 4 hex digits (e.g. "17cb")
+#   default     -> 8 hex digits (e.g. "fee00000")
+# Multiple values in a range are separated by spaces / newlines.
+
+pci_byte()  { pciconf -r -b "$1" "$2" 2>/dev/null; }
+pci_hword() { pciconf -r -h "$1" "$2" 2>/dev/null; }
+pci_dword() { pciconf -r    "$1" "$2" 2>/dev/null; }
+
+# ---- capability list walker ----
+#
+# find_pci_cap <dev> <cap_id>
+# Walk the PCI capability linked list starting at config-space offset 0x34.
+# Prints the byte offset of the first capability with the given ID, or returns 1.
+
+find_pci_cap() {
+	local _dev="${1}" _target="${2}"
+	local _cap _id _iter
+
+	_cap=$(( 0x$(pci_byte "${_dev}" 0x34) ))
+	_iter=0
+	while [ "${_cap}" -ne 0 ] && [ "${_cap}" -ne 255 ] && [ "${_iter}" -lt 64 ]; do
+		_id=$(( 0x$(pci_byte "${_dev}" "${_cap}") ))
+		if [ "${_id}" -eq "${_target}" ]; then
+			echo "${_cap}"
+			return 0
+		fi
+		_cap=$(( 0x$(pci_byte "${_dev}" "$(( _cap + 1 ))") ))
+		_iter=$(( _iter + 1 ))
+	done
+	return 1
+}
+
+# ---- MSI helpers ----
+
+# msi_enabled <dev>
+# Prints 1 if the MSI Enable bit is set in the device's MSI capability, else 0.
+msi_enabled() {
+	local _dev="${1}" _cap _ctrl
+
+	_cap=$(find_pci_cap "${_dev}" "${MSI_CAP_ID}") || { echo 0; return; }
+	_ctrl=$(( 0x$(pci_byte "${_dev}" "$(( _cap + 2 ))") ))
+	echo $(( _ctrl & 1 ))
+}
+
+# read_msi <dev>
+# Prints shell variable assignments for eval:
+#   MSI_ADDR=0x...   (host-physical MSI message address)
+#   MSI_DATA=0x...   (host-physical MSI message data)
+read_msi() {
+	local _dev="${1}" _cap _ctrl _is64 _al _ah _data
+
+	_cap=$(find_pci_cap "${_dev}" "${MSI_CAP_ID}") \
+		|| err "MSI capability not found on ${_dev}"
+
+	# Message Control word: byte at cap+2 holds Enable (bit 0) and 64-bit (bit 7)
+	_ctrl=$(( 0x$(pci_byte "${_dev}" "$(( _cap + 2 ))") ))
+	_is64=$(( (_ctrl >> 7) & 1 ))
+
+	# Message Address (32-bit low half, always at cap+4)
+	_al=$(( 0x$(pci_dword "${_dev}" "$(( _cap + 4 ))") ))
+
+	if [ "${_is64}" -eq 1 ]; then
+		_ah=$(( 0x$(pci_dword "${_dev}" "$(( _cap + 8 ))") ))
+		_data=$(( 0x$(pci_hword "${_dev}" "$(( _cap + 12 ))") ))
+	else
+		_ah=0
+		_data=$(( 0x$(pci_hword "${_dev}" "$(( _cap + 8 ))") ))
+	fi
+
+	if [ "${_ah}" -ne 0 ]; then
+		printf 'MSI_ADDR=0x%x%08x\n' "${_ah}" "${_al}"
+	else
+		printf 'MSI_ADDR=0x%x\n' "${_al}"
+	fi
+	printf 'MSI_DATA=0x%x\n' "${_data}"
+}
+
+# ---- device discovery ----
+#
+# find_wcn_device
+# Parse bhyve.conf for passthru= entries; identify the QCNFA765 by vendor ID
+# 0x17cb (Qualcomm).  Prints the pciconf selector (e.g. pci0:5:0:0).
+
+find_wcn_device() {
+	local _passthru _entry _bus _slot _func _dev _vendor _count
+
+	_passthru=$(awk -F= '/^[[:space:]]*passthru[[:space:]]*=/ { print $2; exit }' \
+		"${BHYVE_CONF}")
+	[ -n "${_passthru}" ] || err "passthru= is not set in ${BHYVE_CONF}"
+
+	# Try each space-separated B/S/F entry, look for Qualcomm vendor 17cb
+	for _entry in ${_passthru}; do
+		_bus=$(printf '%s' "${_entry}"  | cut -d/ -f1)
+		_slot=$(printf '%s' "${_entry}" | cut -d/ -f2)
+		_func=$(printf '%s' "${_entry}" | cut -d/ -f3)
+		_dev="pci0:${_bus}:${_slot}:${_func}"
+		_vendor=$(pci_hword "${_dev}" 0x00)
+		if [ "${_vendor}" = "17cb" ]; then
+			echo "${_dev}"
+			return 0
+		fi
+	done
+
+	# No vendor match — if there is exactly one entry, use it with a warning
+	# (pciconf may not be able to read vendor before bhyve claims the device).
+	_count=$(printf '%s\n' ${_passthru} | wc -l | tr -d ' ')
+	if [ "${_count}" -eq 1 ]; then
+		_bus=$(printf  '%s' "${_passthru}" | cut -d/ -f1)
+		_slot=$(printf '%s' "${_passthru}" | cut -d/ -f2)
+		_func=$(printf '%s' "${_passthru}" | cut -d/ -f3)
+		warn "Could not verify PCI vendor ID; assuming ${_passthru} is QCNFA765"
+		echo "pci0:${_bus}:${_slot}:${_func}"
+		return 0
+	fi
+
+	err "No device with vendor 0x17cb (Qualcomm) found among passthru entries: ${_passthru}"
+}
+
+# ---- main ----
+
+# Handle already-configured case
+if grep -q 'ath11k_pci\.host_msi_vector_addr=' "${GRUB_CFG}"; then
+	if [ "${FORCE}" -eq 1 ]; then
+		info "--force: removing existing MSI parameters from ${GRUB_CFG}"
+		cp "${GRUB_CFG}" "${GRUB_CFG}.bak"
+		sed -i '' \
+			-e 's/ ath11k_pci\.host_msi_vector_addr=[^ ]*//g' \
+			-e 's/ ath11k_pci\.host_msi_vector_data=[^ ]*//g' \
+			"${GRUB_CFG}"
+	else
+		info "Already configured. Use --force to reconfigure (e.g. after suspend/resume)."
+		exit 0
+	fi
+fi
+
+PCI_DEV=$(find_wcn_device)
+info "QCNFA765 / WCN6855 device: ${PCI_DEV}"
+
+# Stop wifibox if already running
+WIFIBOX_WAS_RUNNING=0
+if service wifibox status >/dev/null 2>&1; then
+	WIFIBOX_WAS_RUNNING=1
+	info "Stopping running wifibox..."
+	service wifibox stop || service wifibox forcestop
+fi
+
+# Start wifibox so bhyve writes host-physical MSI values into the device's
+# physical config space when ath11k_pci calls pci_alloc_irq_vectors().
+info "Starting wifibox VM to probe MSI..."
+service wifibox start || err "Failed to start wifibox service"
+
+# Poll until the MSI Enable bit is set (ath11k_pci has programmed MSI)
+info "Waiting for ath11k_pci to enable MSI (up to ${WAIT_MSI}s)..."
+_i=0
+while [ "${_i}" -lt "${WAIT_MSI}" ]; do
+	if [ "$(msi_enabled "${PCI_DEV}")" -eq 1 ]; then
+		break
+	fi
+	sleep 1
+	_i=$(( _i + 1 ))
+done
+
+if [ "$(msi_enabled "${PCI_DEV}")" -ne 1 ]; then
+	info "Stopping wifibox (probe timed out)..."
+	service wifibox stop 2>/dev/null || service wifibox forcestop 2>/dev/null || true
+	err "Timed out after ${WAIT_MSI}s waiting for MSI Enable.
+     Check that:
+       - FW_ATH11K is enabled in this wifibox-alpine package
+       - passthru= in ${BHYVE_CONF} points to the QCNFA765 (PCI ID 17cb:1103)
+       - The linux64 kernel module is loaded and compat.linux.emul_path is set"
+fi
+
+# Read the host-physical MSI address and data from config space
+eval "$(read_msi "${PCI_DEV}")"
+
+[ -n "${MSI_ADDR}" ] && [ "${MSI_ADDR}" != "0x0" ] \
+	|| err "MSI address is zero — unexpected; bhyve may not have written config space yet"
+
+info "Detected MSI vector: addr=${MSI_ADDR} data=${MSI_DATA}"
+
+# Stop wifibox before patching grub.cfg
+info "Stopping wifibox..."
+service wifibox stop || service wifibox forcestop
+
+# Patch grub.cfg: append module parameters to the 'linux (host)...' boot line
+info "Patching ${GRUB_CFG}..."
+cp "${GRUB_CFG}" "${GRUB_CFG}.bak"
+sed -i '' \
+	"/^linux (host)/s/$/ ath11k_pci.host_msi_vector_addr=${MSI_ADDR} ath11k_pci.host_msi_vector_data=${MSI_DATA}/" \
+	"${GRUB_CFG}"
+
+if ! grep -q 'ath11k_pci\.host_msi_vector_addr=' "${GRUB_CFG}"; then
+	cp "${GRUB_CFG}.bak" "${GRUB_CFG}"
+	err "Patch failed — ${GRUB_CFG} does not contain a 'linux (host)...' line"
+fi
+info "grub.cfg patched. Backup: ${GRUB_CFG}.bak"
+
+# Restart wifibox with the new kernel parameters
+info "Restarting wifibox..."
+service wifibox start || err "Failed to start wifibox after patching grub.cfg"
+
+# Verify that the wifibox network interface appears
+info "Waiting for wifibox network interface (up to ${WAIT_IFACE}s)..."
+_j=0
+while [ "${_j}" -lt "${WAIT_IFACE}" ]; do
+	if ifconfig -l 2>/dev/null | tr ' ' '\n' | grep -q '^wifibox'; then
+		info "SUCCESS: wifibox interface is up."
+		info "Configure /usr/local/etc/wifibox/wpa_supplicant/wpa_supplicant.conf"
+		info "and restart wifibox to connect to a network."
+		exit 0
+	fi
+	sleep 1
+	_j=$(( _j + 1 ))
+done
+
+warn "wifibox interface did not appear within ${WAIT_IFACE}s."
+warn "Check 'service wifibox status' and /var/log/wifibox.log for details."
+exit 1
