@@ -1,0 +1,67 @@
+--- backend/libinput/backend.c
++++ backend/libinput/backend.c
+@@ -2,6 +2,7 @@
+ #include <libinput.h>
+ #include <stdlib.h>
+ #include <stdio.h>
++#include <string.h>
+ #include <wlr/backend/interface.h>
+ #include <wlr/backend/session.h>
+ #include <wlr/util/log.h>
+@@ -87,17 +88,46 @@ static bool backend_start(struct wlr_backend *wlr_backend) {
+ 		get_libinput_backend_from_backend(wlr_backend);
+ 	wlr_log(WLR_DEBUG, "Starting libinput backend");
+ 
+-	backend->libinput_context = libinput_udev_create_context(&libinput_impl,
+-		backend, backend->session->udev);
+-	if (!backend->libinput_context) {
+-		wlr_log(WLR_ERROR, "Failed to create libinput context");
+-		return false;
+-	}
++	const char *devices_str = getenv("WLR_LIBINPUT_DEVICES");
++	if (devices_str != NULL && devices_str[0] != '\0') {
++		wlr_log(WLR_INFO, "Using path-based libinput with WLR_LIBINPUT_DEVICES");
++		backend->libinput_context = libinput_path_create_context(&libinput_impl,
++			backend);
++		if (!backend->libinput_context) {
++			wlr_log(WLR_ERROR, "Failed to create libinput path context");
++			return false;
++		}
+ 
+-	if (libinput_udev_assign_seat(backend->libinput_context,
+-			backend->session->seat) != 0) {
+-		wlr_log(WLR_ERROR, "Failed to assign libinput seat");
+-		return false;
++		char *devices_dup = strdup(devices_str);
++		if (!devices_dup) {
++			wlr_log(WLR_ERROR, "strdup failed");
++			return false;
++		}
++		char *saveptr;
++		char *path = strtok_r(devices_dup, ":", &saveptr);
++		while (path != NULL) {
++			wlr_log(WLR_DEBUG, "Adding input device: %s", path);
++			struct libinput_device *dev = libinput_path_add_device(
++				backend->libinput_context, path);
++			if (dev == NULL) {
++				wlr_log(WLR_ERROR, "Failed to add input device: %s", path);
++			}
++			path = strtok_r(NULL, ":", &saveptr);
++		}
++		free(devices_dup);
++	} else {
++		backend->libinput_context = libinput_udev_create_context(&libinput_impl,
++			backend, backend->session->udev);
++		if (!backend->libinput_context) {
++			wlr_log(WLR_ERROR, "Failed to create libinput context");
++			return false;
++		}
++
++		if (libinput_udev_assign_seat(backend->libinput_context,
++				backend->session->seat) != 0) {
++			wlr_log(WLR_ERROR, "Failed to assign libinput seat");
++			return false;
++		}
+ 	}
+ 
+ 	// TODO: More sophisticated logging

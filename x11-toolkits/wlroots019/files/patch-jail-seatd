@@ -1,0 +1,284 @@
+--- backend/backend.c
++++ backend/backend.c
+@@ -121,6 +121,13 @@ int wlr_backend_get_drm_fd(struct wlr_backend *backend) {
+ 	return backend->impl->get_drm_fd(backend);
+ }
+ 
++struct wlr_session *wlr_backend_get_session(struct wlr_backend *backend) {
++	if (!backend->impl->get_session) {
++		return NULL;
++	}
++	return backend->impl->get_session(backend);
++}
++
+ static size_t parse_outputs_env(const char *name) {
+ 	const char *outputs_str = getenv(name);
+ 	if (outputs_str == NULL) {
+--- backend/drm/backend.c
++++ backend/drm/backend.c
+@@ -75,6 +75,11 @@ static int backend_get_drm_fd(struct wlr_backend *backend) {
+ 	return drm->fd;
+ }
+ 
++static struct wlr_session *backend_get_session(struct wlr_backend *backend) {
++	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
++	return drm->session;
++}
++
+ static bool backend_test(struct wlr_backend *backend,
+ 		const struct wlr_backend_output_state *states, size_t states_len) {
+ 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
+@@ -91,6 +96,7 @@ static const struct wlr_backend_impl backend_impl = {
+ 	.start = backend_start,
+ 	.destroy = backend_destroy,
+ 	.get_drm_fd = backend_get_drm_fd,
++	.get_session = backend_get_session,
+ 	.test = backend_test,
+ 	.commit = backend_commit,
+ };
+@@ -212,8 +218,8 @@ struct wlr_backend *wlr_drm_backend_create(struct wlr_session *session,
+ 
+ 	char *name = drmGetDeviceNameFromFd2(dev->fd);
+ 	if (name == NULL) {
+-		wlr_log_errno(WLR_ERROR, "drmGetDeviceNameFromFd2() failed");
+-		return NULL;
++		wlr_log(WLR_DEBUG, "drmGetDeviceNameFromFd2() failed, using placeholder");
++		name = strdup("(via seatd)");
+ 	}
+ 
+ 	drmVersion *version = drmGetVersion(dev->fd);
+--- backend/multi/backend.c
++++ backend/multi/backend.c
+@@ -78,6 +78,20 @@ static int multi_backend_get_drm_fd(struct wlr_backend *backend) {
+ 	return -1;
+ }
+ 
++static struct wlr_session *multi_backend_get_session(struct wlr_backend *backend) {
++	struct wlr_multi_backend *multi = multi_backend_from_backend(backend);
++
++	struct subbackend_state *sub;
++	wl_list_for_each(sub, &multi->backends, link) {
++		struct wlr_session *session = wlr_backend_get_session(sub->backend);
++		if (session != NULL) {
++			return session;
++		}
++	}
++
++	return NULL;
++}
++
+ static int compare_output_state_backend(const void *data_a, const void *data_b) {
+ 	const struct wlr_backend_output_state *a = data_a;
+ 	const struct wlr_backend_output_state *b = data_b;
+@@ -144,6 +158,7 @@ static const struct wlr_backend_impl backend_impl = {
+ 	.start = multi_backend_start,
+ 	.destroy = multi_backend_destroy,
+ 	.get_drm_fd = multi_backend_get_drm_fd,
++	.get_session = multi_backend_get_session,
+ 	.test = multi_backend_test,
+ 	.commit = multi_backend_commit,
+ };
+--- backend/session/session.c
++++ backend/session/session.c
+@@ -355,6 +355,11 @@ struct wlr_device *wlr_session_open_file(struct wlr_session *session,
+ 
+ 	dev->fd = fd;
+ 	dev->dev = st.st_rdev;
++	dev->devnode = strdup(path);
++	if (!dev->devnode) {
++		wlr_log_errno(WLR_ERROR, "strdup failed");
++		goto error;
++	}
+ 	dev->device_id = device_id;
+ 	wl_signal_init(&dev->events.change);
+ 	wl_signal_init(&dev->events.remove);
+@@ -383,6 +388,7 @@ void wlr_session_close_file(struct wlr_session *session,
+ 
+ 	close(dev->fd);
+ 	wl_list_remove(&dev->link);
++	free(dev->devnode);
+ 	free(dev);
+ }
+ 
+--- include/wlr/backend.h
++++ include/wlr/backend.h
+@@ -80,6 +80,11 @@ void wlr_backend_destroy(struct wlr_backend *backend);
+  * to have ownership of it.
+  */
+ int wlr_backend_get_drm_fd(struct wlr_backend *backend);
++/**
++ * Returns the session used by the backend, or NULL if the backend does not
++ * use a session (e.g. headless, Wayland, X11 backends).
++ */
++struct wlr_session *wlr_backend_get_session(struct wlr_backend *backend);
+ 
+ /**
+  * Atomically test a new configuration for multiple outputs.
+--- include/wlr/backend/interface.h
++++ include/wlr/backend/interface.h
+@@ -18,6 +18,7 @@ struct wlr_backend_impl {
+ 	bool (*start)(struct wlr_backend *backend);
+ 	void (*destroy)(struct wlr_backend *backend);
+ 	int (*get_drm_fd)(struct wlr_backend *backend);
++	struct wlr_session *(*get_session)(struct wlr_backend *backend);
+ 	bool (*test)(struct wlr_backend *backend,
+ 		const struct wlr_backend_output_state *states, size_t states_len);
+ 	bool (*commit)(struct wlr_backend *backend,
+--- include/wlr/backend/session.h
++++ include/wlr/backend/session.h
+@@ -14,6 +14,7 @@ struct wlr_device {
+ 	int fd;
+ 	int device_id;
+ 	dev_t dev;
++	char *devnode;
+ 	struct wl_list link; // wlr_session.devices
+ 
+ 	struct {
+--- render/allocator/allocator.c
++++ render/allocator/allocator.c
+@@ -1,8 +1,10 @@
+ #include <assert.h>
+ #include <fcntl.h>
+ #include <stdlib.h>
++#include <sys/stat.h>
+ #include <unistd.h>
+ #include <wlr/backend.h>
++#include <wlr/backend/session.h>
+ #include <wlr/config.h>
+ #include <wlr/interfaces/wlr_buffer.h>
+ #include <wlr/render/allocator.h>
+@@ -35,7 +37,8 @@ void wlr_allocator_init(struct wlr_allocator *alloc,
+ /* Re-open the DRM node to avoid GEM handle ref'counting issues. See:
+  * https://gitlab.freedesktop.org/mesa/drm/-/merge_requests/110
+  */
+-static int reopen_drm_node(int drm_fd, bool allow_render_node) {
++static int reopen_drm_node(struct wlr_session *session, int drm_fd,
++		bool allow_render_node) {
+ 	if (drmIsMaster(drm_fd)) {
+ 		// Only recent kernels support empty leases
+ 		uint32_t lessee_id;
+@@ -58,13 +61,64 @@ static int reopen_drm_node(int drm_fd, bool allow_render_node) {
+ 		// Either the DRM device has no render node, either the caller wants
+ 		// a primary node
+ 		name = drmGetDeviceNameFromFd2(drm_fd);
+-		if (name == NULL) {
+-			wlr_log(WLR_ERROR, "drmGetDeviceNameFromFd2 failed");
+-			return -1;
++	}
++
++	// If standard DRM name lookup failed (e.g. in a jail where devfs does
++	// not expose the device nodes), try to find the path via the session's
++	// open device list.
++	if (name == NULL && session != NULL) {
++		struct stat st;
++		if (fstat(drm_fd, &st) == 0) {
++			struct wlr_device *dev;
++			wl_list_for_each(dev, &session->devices, link) {
++				if (dev->dev == st.st_rdev && dev->devnode != NULL) {
++					name = strdup(dev->devnode);
++					if (name != NULL) {
++						wlr_log(WLR_DEBUG,
++							"Resolved DRM node to '%s' via session", name);
++					}
++					break;
++				}
++			}
++		}
++	}
++
++	if (name == NULL) {
++		wlr_log(WLR_ERROR, "Failed to determine DRM device name");
++		return -1;
++	}
++
++	int new_fd = -1;
++
++	// Prefer opening via the session (seatd) so that a fresh file description
++	// is obtained through privilege delegation rather than a direct open().
++	// This allows operation in restricted environments (e.g. jails) where the
++	// process does not have direct access to DRM device nodes.
++	if (session != NULL) {
++		struct wlr_device *dev = wlr_session_open_file(session, name);
++		if (dev != NULL) {
++			new_fd = fcntl(dev->fd, F_DUPFD_CLOEXEC, 0);
++			if (new_fd < 0) {
++				wlr_log_errno(WLR_ERROR, "fcntl F_DUPFD_CLOEXEC failed for '%s'",
++					name);
++			} else {
++				wlr_log(WLR_DEBUG, "Opened DRM node '%s' via session", name);
++			}
++			wlr_session_close_file(session, dev);
+ 		}
+ 	}
+ 
+-	int new_fd = open(name, O_RDWR | O_CLOEXEC);
++	if (new_fd < 0) {
++		new_fd = open(name, O_RDWR | O_CLOEXEC);
++	}
++
++	// Last resort: dup the existing fd. Less ideal (shared GEM handles)
++	// but the only option in jails where the device cannot be reopened.
++	if (new_fd < 0) {
++		wlr_log(WLR_INFO, "Cannot reopen DRM node, falling back to dup()");
++		new_fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
++	}
++
+ 	if (new_fd < 0) {
+ 		wlr_log_errno(WLR_ERROR, "Failed to open DRM node '%s'", name);
+ 		free(name);
+@@ -77,7 +131,9 @@ static int reopen_drm_node(int drm_fd, bool allow_render_node) {
+ 	// we're running under the DRM backend), we need to use the legacy DRM
+ 	// authentication mechanism to have the permission to manipulate DRM dumb
+ 	// buffers.
+-	if (drmIsMaster(drm_fd) && drmGetNodeTypeFromFd(new_fd) == DRM_NODE_PRIMARY) {
++	// node_type may be -1 in a jail where devname_r cannot resolve the name.
++	int node_type = drmGetNodeTypeFromFd(new_fd);
++	if (drmIsMaster(drm_fd) && (node_type == DRM_NODE_PRIMARY || node_type < 0)) {
+ 		drm_magic_t magic;
+ 		if (drmGetMagic(new_fd, &magic) < 0) {
+ 			wlr_log_errno(WLR_ERROR, "drmGetMagic failed");
+@@ -106,6 +162,11 @@ struct wlr_allocator *wlr_allocator_autocreate(struct wlr_backend *backend,
+ 		drm_fd = wlr_renderer_get_drm_fd(renderer);
+ 	}
+ 
++	// Session may be NULL for backends that don't use one (headless, Wayland,
++	// X11). When available it is used to open DRM nodes via seatd rather than
++	// directly, which allows running in restricted environments such as jails.
++	struct wlr_session *session = wlr_backend_get_session(backend);
++
+ 	struct wlr_allocator *alloc = NULL;
+ 
+ 	uint32_t gbm_caps = WLR_BUFFER_CAP_DMABUF;
+@@ -113,7 +174,7 @@ struct wlr_allocator *wlr_allocator_autocreate(struct wlr_backend *backend,
+ 			&& drm_fd >= 0) {
+ #if WLR_HAS_GBM_ALLOCATOR
+ 		wlr_log(WLR_DEBUG, "Trying to create gbm allocator");
+-		int gbm_fd = reopen_drm_node(drm_fd, true);
++		int gbm_fd = reopen_drm_node(session, drm_fd, true);
+ 		if (gbm_fd < 0) {
+ 			return NULL;
+ 		}
+@@ -138,9 +199,9 @@ struct wlr_allocator *wlr_allocator_autocreate(struct wlr_backend *backend,
+ 
+ 	uint32_t drm_caps = WLR_BUFFER_CAP_DMABUF | WLR_BUFFER_CAP_DATA_PTR;
+ 	if ((backend_caps & drm_caps) && (renderer_caps & drm_caps)
+ 			&& drm_fd >= 0 && drmIsMaster(drm_fd)) {
+ 		wlr_log(WLR_DEBUG, "Trying to create drm dumb allocator");
+-		int dumb_fd = reopen_drm_node(drm_fd, false);
++		int dumb_fd = reopen_drm_node(session, drm_fd, false);
+ 		if (dumb_fd < 0) {
+ 			return NULL;
+ 		}
+--- render/allocator/drm_dumb.c
++++ render/allocator/drm_dumb.c
+@@ -201,7 +201,9 @@ static const struct wlr_allocator_interface allocator_impl = {
+ };
+ 
+ struct wlr_allocator *wlr_drm_dumb_allocator_create(int drm_fd) {
+-	if (drmGetNodeTypeFromFd(drm_fd) != DRM_NODE_PRIMARY) {
++	int node_type = drmGetNodeTypeFromFd(drm_fd);
++	// Allow unknown (-1) for jails where devname_r cannot resolve the type.
++	if (node_type >= 0 && node_type != DRM_NODE_PRIMARY) {
+ 		wlr_log(WLR_ERROR, "Cannot use DRM dumb buffers with non-primary DRM FD");
+ 		return NULL;
+ 	}
