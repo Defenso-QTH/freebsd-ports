@@ -1,0 +1,45 @@
+--- src/evdev.c
++++ src/evdev.c
+@@ -2193,8 +2193,12 @@ evdev_device_have_same_syspath(struct udev_device *udev_device, int fd)
+ 		goto out;
+ 
+ 	udev_device_new = udev_device_new_from_devnum(udev, 'c', st.st_rdev);
+-	if (!udev_device_new)
++	if (!udev_device_new) {
++		/* In a jail/container where devfs doesn't expose the device,
++		 * we cannot verify the syspath.  Trust the fd provider (seatd). */
++		rc = true;
+ 		goto out;
++	}
+ 
+ 	rc = streq(udev_device_get_syspath(udev_device_new),
+ 		   udev_device_get_syspath(udev_device));
+--- src/path-seat.c
++++ src/path-seat.c
+@@ -335,8 +335,14 @@ udev_device_from_devnode(struct libinput *libinput,
+ 	size_t count = 0;
+ 
+ 	if (stat(devnode, &st) < 0)
+-		return NULL;
++		goto try_syspath;
+ 
++	/*
++	 * If stat fails (e.g. device node not in local namespace such as
++	 * a FreeBSD jail without devfs exposure), fall back to creating
++	 * a udev device directly from the devnode path.  On FreeBSD,
++	 * libudev-devd populates evdev properties via kern.evdev sysctls.
++	 */
+ 	dev = udev_device_new_from_devnum(udev, 'c', st.st_rdev);
+ 
+ 	while (dev && !udev_device_get_is_initialized(dev)) {
+@@ -353,6 +359,10 @@ udev_device_from_devnode(struct libinput *libinput,
+ 	}
+ 
+ 	return dev;
++
++try_syspath:
++	return udev_device_new_from_syspath(udev, devnode);
++
+ }
+ 
+ LIBINPUT_EXPORT struct libinput_device *
