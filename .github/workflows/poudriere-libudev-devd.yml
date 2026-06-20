@@ -1,0 +1,72 @@
+name: poudriere-libudev-devd
+
+on:
+  push:
+    branches: [ 'ci-poudriere' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  poudriere:
+    runs-on: ubuntu-24.04
+    # poudriere in a nested FreeBSD VM is slow; meson pulls in python, which
+    # is the long pole. Stay under the 6h hosted-runner hard limit.
+    timeout-minutes: 350
+    steps:
+      - name: check out the patched port only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: devel/libudev-devd
+          sparse-checkout-cone-mode: false
+
+      - name: poudriere bulk build (FreeBSD VM)
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "15.1"
+          usesh: true
+          mem: 6144
+          cpu: 4
+          copyback: true
+          run: |
+            set -eux
+            export ASSUME_ALWAYS_YES=yes
+            pkg install -y poudriere git
+
+            # poudriere in directory mode (the VM image is not ZFS)
+            { echo NO_ZFS=yes
+              echo BASEFS=/poudriere
+              echo DISTFILES_CACHE=/poudriere/distfiles
+              echo RESOLV_CONF=/etc/resolv.conf
+              echo ALLOW_MAKE_JOBS=yes
+            } > /usr/local/etc/poudriere.conf
+            mkdir -p /poudriere/distfiles
+
+            # full ports tree (shallow) with our patched port overlaid
+            git clone --depth 1 https://github.com/freebsd/freebsd-ports.git /poudriere-ports
+            rm -rf /poudriere-ports/devel/libudev-devd
+            cp -a devel/libudev-devd /poudriere-ports/devel/libudev-devd
+
+            # refresh the checksum in case the pinned commit changed
+            make -C /poudriere-ports/devel/libudev-devd makesum || true
+
+            # build jail (downloads 15.1-RELEASE base) + register the ports tree
+            poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
+            poudriere ports -c -p local -m null -M /poudriere-ports
+
+            # build the port and its dependency closure
+            echo "devel/libudev-devd" > /tmp/pkglist
+            poudriere bulk -j j151 -p local -f /tmp/pkglist
+
+            # export the resulting pkg repo back to the workspace
+            rm -rf packages && mkdir -p packages
+            cp -a /poudriere/data/packages/j151-local/. packages/
+            ls -lR packages | head -n 40
+
+      - name: upload package repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: libudev-devd-pkg-repo
+          path: packages
+          retention-days: 7
