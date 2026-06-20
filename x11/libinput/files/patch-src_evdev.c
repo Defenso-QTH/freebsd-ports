@@ -35,7 +35,6 @@ so we just use them instead of the original (enumerated) ones.
  		device->source = NULL;
  	}
  }
-
 @@ -2116,24 +2116,34 @@ evdev_notify_added_device(struct evdev_device *device)
  static bool
  evdev_device_have_same_syspath(struct udev_device *udev_device, int fd)
