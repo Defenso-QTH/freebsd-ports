@@ -18,7 +18,9 @@ jobs:
       - name: check out the patched port only
         uses: actions/checkout@v4
         with:
-          sparse-checkout: devel/libudev-devd
+          sparse-checkout: |
+            devel/libudev-devd
+            x11/libinput
           sparse-checkout-cone-mode: false
 
       - name: poudriere bulk build (FreeBSD VM)
@@ -47,6 +49,9 @@ jobs:
             git clone --depth 1 https://github.com/freebsd/freebsd-ports.git /poudriere-ports
             rm -rf /poudriere-ports/devel/libudev-devd
             cp -a devel/libudev-devd /poudriere-ports/devel/libudev-devd
+            # x11/libinput carries our jail patch (files/patch-src_evdev.c)
+            rm -rf /poudriere-ports/x11/libinput
+            cp -a x11/libinput /poudriere-ports/x11/libinput
 
             # refresh the checksum in case the pinned commit changed
             make -C /poudriere-ports/devel/libudev-devd makesum || true
@@ -55,8 +60,8 @@ jobs:
             poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
             poudriere ports -c -p local -m null -M /poudriere-ports
 
-            # build the port and its dependency closure
-            echo "devel/libudev-devd" > /tmp/pkglist
+            # build the ports and their dependency closure
+            printf 'devel/libudev-devd\nx11/libinput\n' > /tmp/pkglist
             poudriere bulk -j j151 -p local -f /tmp/pkglist
 
             # export the resulting pkg repo back to the workspace
