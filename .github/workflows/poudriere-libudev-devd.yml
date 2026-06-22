@@ -33,6 +33,16 @@ jobs:
             sysutils/seatd
           sparse-checkout-cone-mode: false
 
+      - name: restore poudriere cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            poudriere-cache/packages
+            poudriere-cache/distfiles
+          key: poudriere-${{ runner.os }}-15.1-${{ hashFiles('devel/libudev-devd/**', 'x11/libinput/**', 'sysutils/seatd/**') }}
+          restore-keys: |
+            poudriere-${{ runner.os }}-15.1-
+
       - name: poudriere bulk build (FreeBSD VM)
         uses: vmactions/freebsd-vm@v1
         with:
@@ -53,13 +63,18 @@ jobs:
               echo RESOLV_CONF=/etc/resolv.conf
               echo ALLOW_MAKE_JOBS=yes
             } > /usr/local/etc/poudriere.conf
-            mkdir -p /poudriere/distfiles
+            mkdir -p /poudriere/data/packages /poudriere/distfiles
 
             # build seatd with a Defenso-specific compiled-in socket path
             # (sysutils/seatd reads SEATD_SOCKET -> meson -Ddefaultpath)
             mkdir -p /usr/local/etc/poudriere.d
             echo 'SEATD_SOCKET=/var/run/seatd/seatd.sock' \
                 > /usr/local/etc/poudriere.d/make.conf
+
+            # populate poudriere dirs from cache (no-op on first run)
+            mkdir -p poudriere-cache/packages poudriere-cache/distfiles
+            cp -a poudriere-cache/packages/. /poudriere/data/packages/ || true
+            cp -a poudriere-cache/distfiles/. /poudriere/distfiles/ || true
 
             # full ports tree (shallow) with our patched port overlaid
             git clone --depth 1 https://github.com/freebsd/freebsd-ports.git /poudriere-ports
@@ -82,6 +97,10 @@ jobs:
             # build the ports and their dependency closure
             printf 'devel/libudev-devd\nx11/libinput\nsysutils/seatd\n' > /tmp/pkglist
             poudriere bulk -j j151 -p local -f /tmp/pkglist
+
+            # sync built packages and distfiles back to workspace for caching
+            cp -a /poudriere/data/packages/. poudriere-cache/packages/ || true
+            cp -a /poudriere/distfiles/. poudriere-cache/distfiles/ || true
 
             # export the pkg repo to the workspace, resolving poudriere's
             # symlinks (GitHub Pages won't follow them) so it serves as-is.
