@@ -1,7 +1,7 @@
 PORTNAME=	seatd
-DISTVERSION=	0.9.3
+DISTVERSION=	0.9.3.20260420
 CATEGORIES=	sysutils
-MASTER_SITES=	https://git.sr.ht/~kennylevinsen/${PORTNAME}/archive/${DISTVERSIONFULL}${EXTRACT_SUFX}?dummy=/
+MASTER_SITES=	https://git.sr.ht/~kennylevinsen/${PORTNAME}/archive/${SEATD_COMMIT}${EXTRACT_SUFX}?dummy=/
 
 MAINTAINER=	jbeich@FreeBSD.org
 COMMENT=	Minimal seat management daemon and universal library
@@ -9,6 +9,11 @@ WWW=		https://git.sr.ht/~kennylevinsen/seatd
 
 LICENSE=	MIT
 LICENSE_FILE=	${WRKSRC}/LICENSE
+
+# Post-0.9.3 snapshot.  sr.ht serves the archive under the commit hash and
+# unpacks it as ${PORTNAME}-${SEATD_COMMIT}, so pin both explicitly.
+SEATD_COMMIT=	4bcdc81972157be5ac0265e8fab29617f0caa5ab
+WRKSRC=		${WRKDIR}/${PORTNAME}-${SEATD_COMMIT}
 
 USES=		compiler:c11 cpe meson pkgconfig
 USE_LDCONFIG=	yes
@@ -23,19 +28,9 @@ PLIST_FILES=	bin/${PORTNAME} \
 		lib/libseat.so.1 \
 		libdata/pkgconfig/libseat.pc
 
-OPTIONS_DEFINE=	BASU MANPAGES
-OPTIONS_DEFAULT=BASU MANPAGES
+OPTIONS_DEFINE=	MANPAGES
+OPTIONS_DEFAULT=MANPAGES
 OPTIONS_SUB=	yes
-
-# https://lists.sr.ht/~kennylevinsen/seatd-devel/%3CQHZRRQ.73ZI29COPK131%40unrelenting.technology%3E
-BASU_DESC=		ConsoleKit2 support via basu (experimental)
-BASU_PATCH_SITES=	https://github.com/DankBSD/${PORTNAME}/commit/:ck2
-BASU_PATCHFILES=	5f31d8eebea1.patch:-p1:ck2
-BASU_LIB_DEPENDS=	libbasu.so:devel/basu
-BASU_MESON_ON=		-Dlibseat-consolekit2=enabled
-.if make(makesum)
-.MAKEFLAGS:		WITH+=BASU
-.endif
 
 MANPAGES_BUILD_DEPENDS=	scdoc:textproc/scdoc
 MANPAGES_MESON_ENABLED=	man-pages
