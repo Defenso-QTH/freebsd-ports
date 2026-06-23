@@ -1,0 +1,105 @@
+name: poudriere-drm-kmod
+
+on:
+  push:
+    branches: [ 'ci-poudriere' ]
+  workflow_dispatch:
+
+jobs:
+  poudriere:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: check out drm-612-kmod port
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            graphics/drm-612-kmod
+          sparse-checkout-cone-mode: false
+
+      - name: get freebsd-src 15.1-build HEAD SHA
+        id: src-sha
+        run: |
+          SHA=$(git ls-remote https://github.com/Defenso-QTH/freebsd-src.git \
+            refs/heads/15.1-build | awk '{print $1}')
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: restore freebsd-src/sys cache
+        id: src-cache
+        uses: actions/cache@v4
+        with:
+          path: freebsd-src
+          key: freebsd-src-sys-${{ steps.src-sha.outputs.sha }}
+
+      - name: sparse-clone freebsd-src sys/ (cache miss)
+        if: steps.src-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse --branch 15.1-build \
+            https://github.com/Defenso-QTH/freebsd-src.git freebsd-src
+          cd freebsd-src && git sparse-checkout set sys
+
+      - name: restore poudriere packages cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            poudriere-cache/packages
+            poudriere-cache/distfiles
+          key: poudriere-drm-kmod-${{ runner.os }}-15.1-${{ hashFiles('graphics/drm-612-kmod/**') }}-${{ steps.src-sha.outputs.sha }}
+          restore-keys: |
+            poudriere-drm-kmod-${{ runner.os }}-15.1-
+
+      - name: poudriere bulk build (FreeBSD VM)
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "15.1"
+          usesh: true
+          mem: 6144
+          cpu: 4
+          copyback: true
+          run: |
+            set -eux
+            export ASSUME_ALWAYS_YES=yes
+            pkg install -y poudriere git
+
+            { echo NO_ZFS=yes
+              echo BASEFS=/poudriere
+              echo DISTFILES_CACHE=/poudriere/distfiles
+              echo RESOLV_CONF=/etc/resolv.conf
+              echo ALLOW_MAKE_JOBS=yes
+            } > /usr/local/etc/poudriere.conf
+            mkdir -p /poudriere/data/packages /poudriere/distfiles
+
+            mkdir -p poudriere-cache/packages poudriere-cache/distfiles
+            cp -a poudriere-cache/packages/. /poudriere/data/packages/ || true
+            cp -a poudriere-cache/distfiles/. /poudriere/distfiles/ || true
+
+            git clone --depth 1 https://github.com/freebsd/freebsd-ports.git /poudriere-ports
+            rm -rf /poudriere-ports/graphics/drm-612-kmod
+            cp -a graphics/drm-612-kmod /poudriere-ports/graphics/drm-612-kmod
+
+            poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
+            poudriere ports -c -p local -m null -M /poudriere-ports
+
+            # drm-66-kmod (USES=kmod) needs kernel sources; use our fork so
+            # the build always matches whatever is in Defenso-QTH/freebsd-src
+            mkdir -p /poudriere/jails/j151/usr/src
+            cp -a freebsd-src/sys /poudriere/jails/j151/usr/src/sys
+
+            printf 'graphics/drm-612-kmod\n' > /tmp/pkglist
+            poudriere bulk -j j151 -p local -f /tmp/pkglist
+
+            cp -a /poudriere/data/packages/. poudriere-cache/packages/ || true
+            cp -a /poudriere/distfiles/. poudriere-cache/distfiles/ || true
+
+            rm -rf repo && mkdir -p repo
+            SRC=/poudriere/data/packages/j151-local/.latest
+            [ -e "$SRC" ] || SRC=/poudriere/data/packages/j151-local
+            cp -RL "$SRC"/. repo/
+            ls -lR repo | head -n 40
+
+      - name: upload package repo (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkg-repo-drm-kmod
+          path: repo
+          retention-days: 7

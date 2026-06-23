@@ -31,6 +31,8 @@ jobs:
             devel/libudev-devd
             x11/libinput
             sysutils/seatd
+            x11-toolkits/wlroots019
+            x11-toolkits/wlroots020
           sparse-checkout-cone-mode: false
 
       - name: restore poudriere cache
@@ -39,7 +41,7 @@ jobs:
           path: |
             poudriere-cache/packages
             poudriere-cache/distfiles
-          key: poudriere-${{ runner.os }}-15.1-${{ hashFiles('devel/libudev-devd/**', 'x11/libinput/**', 'sysutils/seatd/**') }}
+          key: poudriere-${{ runner.os }}-15.1-${{ hashFiles('devel/libudev-devd/**', 'x11/libinput/**', 'sysutils/seatd/**', 'x11-toolkits/wlroots019/**', 'x11-toolkits/wlroots020/**') }}
           restore-keys: |
             poudriere-${{ runner.os }}-15.1-
 
@@ -86,6 +88,12 @@ jobs:
             # sysutils/seatd: post-0.9.3 snapshot + SEATD_SOCKET knob
             rm -rf /poudriere-ports/sysutils/seatd
             cp -a sysutils/seatd /poudriere-ports/sysutils/seatd
+            # x11-toolkits/wlroots019: jail render-node fallback
+            rm -rf /poudriere-ports/x11-toolkits/wlroots019
+            cp -a x11-toolkits/wlroots019 /poudriere-ports/x11-toolkits/wlroots019
+            # x11-toolkits/wlroots020: jail render-node fallback
+            rm -rf /poudriere-ports/x11-toolkits/wlroots020
+            cp -a x11-toolkits/wlroots020 /poudriere-ports/x11-toolkits/wlroots020
 
             # refresh the checksum in case the pinned commit changed
             make -C /poudriere-ports/devel/libudev-devd makesum || true
@@ -95,7 +103,7 @@ jobs:
             poudriere ports -c -p local -m null -M /poudriere-ports
 
             # build the ports and their dependency closure
-            printf 'devel/libudev-devd\nx11/libinput\nsysutils/seatd\n' > /tmp/pkglist
+            printf 'devel/libudev-devd\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots019\nx11-toolkits/wlroots020\n' > /tmp/pkglist
             poudriere bulk -j j151 -p local -f /tmp/pkglist
 
             # sync built packages and distfiles back to workspace for caching
@@ -116,6 +124,23 @@ jobs:
           name: pkg-repo
           path: repo
           retention-days: 7
+
+      - name: merge drm-kmod packages into repo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DRMRUN=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow poudriere-drm-kmod.yml \
+            --branch "${{ github.ref_name }}" \
+            --status success --limit 1 \
+            --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
+          if [ -n "$DRMRUN" ]; then
+            gh run download "$DRMRUN" \
+              --repo "${{ github.repository }}" \
+              --name pkg-repo-drm-kmod --dir drm-repo 2>/dev/null || true
+            [ -d drm-repo ] && cp -rn drm-repo/. repo/ || true
+          fi
 
       - name: upload Pages artifact
         uses: actions/upload-pages-artifact@v3
