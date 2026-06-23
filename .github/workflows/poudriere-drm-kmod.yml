@@ -5,6 +5,10 @@ on:
     branches: [ 'ci-poudriere' ]
   workflow_dispatch:
 
+concurrency:
+  group: freebsd-vm-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   poudriere:
     runs-on: ubuntu-24.04
@@ -80,13 +84,16 @@ jobs:
             poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
             poudriere ports -c -p local -m null -M /poudriere-ports
 
-            # drm-66-kmod (USES=kmod) needs kernel sources; use our fork so
+            # drm-612-kmod (USES=kmod) needs kernel sources; use our fork so
             # the build always matches whatever is in Defenso-QTH/freebsd-src
             mkdir -p /poudriere/jails/j151/usr/src
             cp -a freebsd-src/sys /poudriere/jails/j151/usr/src/sys
 
             printf 'graphics/drm-612-kmod\n' > /tmp/pkglist
+            set +e
             poudriere bulk -j j151 -p local -f /tmp/pkglist
+            BULK_EXIT=$?
+            set -e
 
             cp -a /poudriere/data/packages/. poudriere-cache/packages/ || true
             cp -a /poudriere/distfiles/. poudriere-cache/distfiles/ || true
@@ -96,6 +103,8 @@ jobs:
             [ -e "$SRC" ] || SRC=/poudriere/data/packages/j151-local
             cp -RL "$SRC"/. repo/
             ls -lR repo | head -n 40
+
+            exit ${BULK_EXIT}
 
       - name: upload package repo (artifact)
         uses: actions/upload-artifact@v4

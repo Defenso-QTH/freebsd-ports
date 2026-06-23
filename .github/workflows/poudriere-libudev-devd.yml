@@ -11,7 +11,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # Serialise the two FreeBSD-VM workflows so they don't race for QEMU
+  # resources; drm-kmod uses the same group key and will queue behind this.
+  group: freebsd-vm-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -102,11 +104,24 @@ jobs:
             poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
             poudriere ports -c -p local -m null -M /poudriere-ports
 
+            # Pre-populate poudrière's package dir with FreeBSD binary packages
+            # for heavy transitive deps so they aren't built from source.
+            # Host pkg ABI (FreeBSD:15:amd64) matches the jail so packages are
+            # compatible. llvm19 takes ~95 min and rust ~99 min from source.
+            PKGDIR=/poudriere/data/packages/j151-local/All
+            mkdir -p ${PKGDIR}
+            pkg update -q || true
+            ASSUME_ALWAYS_YES=yes pkg fetch -y -d llvm19 mesa-dri mesa-libs rust 2>&1 | tail -n 5 || true
+            find /var/cache/pkg -name '*.pkg' -exec cp -n {} ${PKGDIR}/ \; 2>/dev/null || true
+
             # build the ports and their dependency closure
             printf 'devel/libudev-devd\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots019\nx11-toolkits/wlroots020\n' > /tmp/pkglist
+            set +e
             poudriere bulk -j j151 -p local -f /tmp/pkglist
+            BULK_EXIT=$?
+            set -e
 
-            # sync built packages and distfiles back to workspace for caching
+            # always sync cache and export repo, even when some ports failed
             cp -a /poudriere/data/packages/. poudriere-cache/packages/ || true
             cp -a /poudriere/distfiles/. poudriere-cache/distfiles/ || true
 
@@ -117,6 +132,8 @@ jobs:
             [ -e "$SRC" ] || SRC=/poudriere/data/packages/j151-local
             cp -RL "$SRC"/. repo/
             ls -lR repo | head -n 40
+
+            exit ${BULK_EXIT}
 
       - name: upload package repo (artifact)
         uses: actions/upload-artifact@v4
