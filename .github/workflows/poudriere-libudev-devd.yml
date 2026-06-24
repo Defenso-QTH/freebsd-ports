@@ -53,6 +53,13 @@ jobs:
           run: |
             set -eux
             export ASSUME_ALWAYS_YES=yes
+
+            # 4 GB swap file so llvm19 and cargo-c don't OOM when building in parallel
+            dd if=/dev/zero of=/swapfile bs=1m count=4096 status=none
+            chmod 0600 /swapfile
+            mdconfig -a -t vnode -f /swapfile -u 0
+            swapon /dev/md0
+
             pkg install -y poudriere git
 
             # poudriere in directory mode (the VM image is not ZFS)
@@ -75,10 +82,6 @@ jobs:
             cp -a poudriere-cache/packages/. /poudriere/data/packages/ || true
             cp -a poudriere-cache/distfiles/. /poudriere/distfiles/ || true
 
-            # use our fork as the ports tree; custom ports are already in it
-            # and the tree is pinned to a specific commit rather than live HEAD,
-            # so binary package versions from pkg.freebsd.org are more likely
-            # to match and avoid forced source rebuilds of llvm19/rust/mesa.
             git clone --depth 1 --branch ci-poudriere \
                 https://github.com/Defenso-QTH/freebsd-ports.git /poudriere-ports
 
@@ -86,22 +89,16 @@ jobs:
             poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
             poudriere ports -c -p local -m null -M /poudriere-ports
 
-            # Pre-populate poudrière's package dir with FreeBSD binary packages
-            # for heavy transitive deps so they aren't built from source.
-            # Host pkg ABI (FreeBSD:15:amd64) matches the jail so packages are
-            # compatible. llvm19 takes ~95 min and rust ~99 min from source.
-            PKGDIR=/poudriere/data/packages/j151-local/All
-            mkdir -p ${PKGDIR}
-            pkg update -q || true
-            ASSUME_ALWAYS_YES=yes pkg fetch -y -d llvm19 mesa-dri mesa-libs rust 2>&1 | tail -n 5 || true
-            find /var/cache/pkg -name '*.pkg' -exec cp -n {} ${PKGDIR}/ \; 2>/dev/null || true
-
-            # build the ports and their dependency closure
             printf 'devel/libudev-devd\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots019\nx11-toolkits/wlroots020\n' > /tmp/pkglist
             set +e
             poudriere bulk -j j151 -p local -f /tmp/pkglist
             BULK_EXIT=$?
             set -e
+
+            # collect per-port error logs for artifact upload
+            mkdir -p build-logs
+            ERRDIR=/poudriere/data/logs/bulk/j151-local/latest/logs/errors
+            [ -d "${ERRDIR}" ] && cp "${ERRDIR}"/*.log build-logs/ 2>/dev/null || true
 
             # always sync cache and export repo, even when some ports failed
             cp -a /poudriere/data/packages/. poudriere-cache/packages/ || true
@@ -122,6 +119,15 @@ jobs:
         with:
           name: pkg-repo
           path: repo
+          retention-days: 7
+
+      - name: upload poudriere error logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poudriere-error-logs
+          path: build-logs
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: merge drm-kmod packages into repo
