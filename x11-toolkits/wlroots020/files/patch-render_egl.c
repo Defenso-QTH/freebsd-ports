@@ -1,5 +1,5 @@
---- a/render/egl.c
-+++ b/render/egl.c
+--- render/egl.c.orig
++++ render/egl.c
 @@ -4,6 +4,12 @@
  #include <stdio.h>
  #include <stdlib.h>
@@ -16,7 +16,7 @@
 @@ -535,6 +541,40 @@ static EGLDeviceEXT get_egl_device_from_drm_fd(struct wlr_egl *egl,
  
  static int open_render_node(int drm_fd) {
-	char *render_name = drmGetRenderDeviceNameFromFd(drm_fd);
+ 	char *render_name = drmGetRenderDeviceNameFromFd(drm_fd);
 +#ifdef __FreeBSD__
 +	/* drmGetRenderDeviceNameFromFd scans devfs and fails in jails.
 +	 * Fall back to hw.dri.N.{primary,render}_devnum sysctls. */
@@ -51,6 +51,6 @@
 +		}
 +	}
 +#endif
-	if (render_name == NULL) {
-		// This can happen on split render/display platforms, fallback to
-		// primary node
+ 	if (render_name == NULL) {
+ 		// This can happen on split render/display platforms, fallback to
+ 		// primary node

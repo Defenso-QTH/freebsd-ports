@@ -1,5 +1,5 @@
---- a/render/allocator/allocator.c
-+++ b/render/allocator/allocator.c
+--- render/allocator/allocator.c.orig
++++ render/allocator/allocator.c
 @@ -1,8 +1,14 @@
  #include <assert.h>
  #include <fcntl.h>
@@ -16,9 +16,9 @@
  #include <wlr/interfaces/wlr_buffer.h>
  #include <wlr/render/allocator.h>
 @@ -53,6 +59,40 @@
-	char *name = NULL;
-	if (allow_render_node) {
-		name = drmGetRenderDeviceNameFromFd(drm_fd);
+ 	char *name = NULL;
+ 	if (allow_render_node) {
+ 		name = drmGetRenderDeviceNameFromFd(drm_fd);
 +#ifdef __FreeBSD__
 +		/* drmGetRenderDeviceNameFromFd scans devfs and fails in jails.
 +		 * Fall back to hw.dri.N.{primary,render}_devnum sysctls. */
@@ -53,6 +53,6 @@
 +			}
 +		}
 +#endif
-	}
-	if (name == NULL) {
-		// Either the DRM device has no render node, either the caller wants
+ 	}
+ 	if (name == NULL) {
+ 		// Either the DRM device has no render node, either the caller wants
