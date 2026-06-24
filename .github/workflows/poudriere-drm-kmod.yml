@@ -14,11 +14,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - name: check out drm-612-kmod port
+      - name: check out repo
         uses: actions/checkout@v4
         with:
-          sparse-checkout: |
-            graphics/drm-612-kmod
+          sparse-checkout: .github
           sparse-checkout-cone-mode: false
 
       - name: get freebsd-src 15.1-build HEAD SHA
@@ -48,7 +47,7 @@ jobs:
           path: |
             poudriere-cache/packages
             poudriere-cache/distfiles
-          key: poudriere-drm-kmod-${{ runner.os }}-15.1-${{ hashFiles('graphics/drm-612-kmod/**') }}-${{ steps.src-sha.outputs.sha }}
+          key: poudriere-drm-kmod-${{ runner.os }}-15.1-${{ github.sha }}-${{ steps.src-sha.outputs.sha }}
           restore-keys: |
             poudriere-drm-kmod-${{ runner.os }}-15.1-
 
@@ -77,9 +76,8 @@ jobs:
             cp -a poudriere-cache/packages/. /poudriere/data/packages/ || true
             cp -a poudriere-cache/distfiles/. /poudriere/distfiles/ || true
 
-            git clone --depth 1 https://github.com/freebsd/freebsd-ports.git /poudriere-ports
-            rm -rf /poudriere-ports/graphics/drm-612-kmod
-            cp -a graphics/drm-612-kmod /poudriere-ports/graphics/drm-612-kmod
+            git clone --depth 1 --branch ci-poudriere \
+                https://github.com/Defenso-QTH/freebsd-ports.git /poudriere-ports
 
             poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
             poudriere ports -c -p local -m null -M /poudriere-ports

@@ -26,15 +26,10 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - name: check out the patched port only
+      - name: check out repo
         uses: actions/checkout@v4
         with:
-          sparse-checkout: |
-            devel/libudev-devd
-            x11/libinput
-            sysutils/seatd
-            x11-toolkits/wlroots019
-            x11-toolkits/wlroots020
+          sparse-checkout: .github
           sparse-checkout-cone-mode: false
 
       - name: restore poudriere cache
@@ -43,7 +38,7 @@ jobs:
           path: |
             poudriere-cache/packages
             poudriere-cache/distfiles
-          key: poudriere-${{ runner.os }}-15.1-${{ hashFiles('devel/libudev-devd/**', 'x11/libinput/**', 'sysutils/seatd/**', 'x11-toolkits/wlroots019/**', 'x11-toolkits/wlroots020/**') }}
+          key: poudriere-${{ runner.os }}-15.1-${{ github.sha }}
           restore-keys: |
             poudriere-${{ runner.os }}-15.1-
 
@@ -80,25 +75,12 @@ jobs:
             cp -a poudriere-cache/packages/. /poudriere/data/packages/ || true
             cp -a poudriere-cache/distfiles/. /poudriere/distfiles/ || true
 
-            # full ports tree (shallow) with our patched port overlaid
-            git clone --depth 1 https://github.com/freebsd/freebsd-ports.git /poudriere-ports
-            rm -rf /poudriere-ports/devel/libudev-devd
-            cp -a devel/libudev-devd /poudriere-ports/devel/libudev-devd
-            # x11/libinput carries our jail patch (files/patch-src_evdev.c)
-            rm -rf /poudriere-ports/x11/libinput
-            cp -a x11/libinput /poudriere-ports/x11/libinput
-            # sysutils/seatd: post-0.9.3 snapshot + SEATD_SOCKET knob
-            rm -rf /poudriere-ports/sysutils/seatd
-            cp -a sysutils/seatd /poudriere-ports/sysutils/seatd
-            # x11-toolkits/wlroots019: jail render-node fallback
-            rm -rf /poudriere-ports/x11-toolkits/wlroots019
-            cp -a x11-toolkits/wlroots019 /poudriere-ports/x11-toolkits/wlroots019
-            # x11-toolkits/wlroots020: jail render-node fallback
-            rm -rf /poudriere-ports/x11-toolkits/wlroots020
-            cp -a x11-toolkits/wlroots020 /poudriere-ports/x11-toolkits/wlroots020
-
-            # refresh the checksum in case the pinned commit changed
-            make -C /poudriere-ports/devel/libudev-devd makesum || true
+            # use our fork as the ports tree; custom ports are already in it
+            # and the tree is pinned to a specific commit rather than live HEAD,
+            # so binary package versions from pkg.freebsd.org are more likely
+            # to match and avoid forced source rebuilds of llvm19/rust/mesa.
+            git clone --depth 1 --branch ci-poudriere \
+                https://github.com/Defenso-QTH/freebsd-ports.git /poudriere-ports
 
             # build jail (downloads 15.1-RELEASE base) + register the ports tree
             poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
