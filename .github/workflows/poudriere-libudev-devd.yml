@@ -85,20 +85,25 @@ jobs:
 
             git clone --depth 1 --branch ci-poudriere \
                 https://github.com/Defenso-QTH/freebsd-ports.git /poudriere-ports
+            # Remove git metadata so poudrière cannot compute a ports-tree hash.
+            # Without it, packages are named 'foo-1.2.3' (plain) rather than
+            # 'foo-1.2.3~<treehash>'.  Pre-seeded plain packages from
+            # pkg.freebsd.org then match exactly and are not discarded.
+            rm -rf /poudriere-ports/.git
 
             # build jail (downloads 15.1-RELEASE base) + register the ports tree
             poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
             poudriere ports -c -p local -m null -M /poudriere-ports
 
-            # Pre-seed heavy binary packages from pkg.freebsd.org.  Our fork now
-            # has libffi-3.6.0 matching the official repo, so python311/llvm19/
-            # rust/mesa pre-seeded packages will pass dependency checks and won't
-            # be rebuilt from source (~3 hours saved).
+            # Pre-seed heavy binary packages from pkg.freebsd.org.  Because .git
+            # was stripped above, poudrière compares plain version strings and
+            # accepts these without rebuilding (~3 hours of rust/llvm19/cmake saved).
             PKGDIR=/poudriere/data/packages/j151-local/All
             mkdir -p ${PKGDIR}
             pkg update -q || true
-            ASSUME_ALWAYS_YES=yes pkg fetch -y -d llvm19 mesa-dri mesa-libs rust \
-                2>&1 | tail -5 || true
+            ASSUME_ALWAYS_YES=yes pkg fetch -y -d \
+                python311 cmake llvm19 mesa-dri mesa-libs rust \
+                2>&1 | tail -20 || true
             find /var/cache/pkg -name '*.pkg' -exec cp -n {} ${PKGDIR}/ \; \
                 2>/dev/null || true
 
