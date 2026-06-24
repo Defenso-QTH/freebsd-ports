@@ -54,10 +54,9 @@ jobs:
             set -eux
             export ASSUME_ALWAYS_YES=yes
 
-            # 4 GB swap so llvm19 and cargo-c don't OOM when building in parallel.
-            # truncate creates a sparse file (instant, no disk pressure); mdconfig
-            # presents it as a block device; blocks are allocated on demand.
-            truncate -s 4g /swapfile
+            # 2 GB swap safety net; dd pre-allocates so swap I/O is fast (no
+            # UFS sparse-block-allocation latency when pages are actually swapped).
+            dd if=/dev/zero of=/swapfile bs=1m count=2048
             chmod 0600 /swapfile
             mdconfig -a -t vnode -f /swapfile -u 0
             swapon /dev/md0
@@ -90,6 +89,18 @@ jobs:
             # build jail (downloads 15.1-RELEASE base) + register the ports tree
             poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
             poudriere ports -c -p local -m null -M /poudriere-ports
+
+            # Pre-seed heavy binary packages from pkg.freebsd.org.  Our fork now
+            # has libffi-3.6.0 matching the official repo, so python311/llvm19/
+            # rust/mesa pre-seeded packages will pass dependency checks and won't
+            # be rebuilt from source (~3 hours saved).
+            PKGDIR=/poudriere/data/packages/j151-local/All
+            mkdir -p ${PKGDIR}
+            pkg update -q || true
+            ASSUME_ALWAYS_YES=yes pkg fetch -y -d llvm19 mesa-dri mesa-libs rust \
+                2>&1 | tail -5 || true
+            find /var/cache/pkg -name '*.pkg' -exec cp -n {} ${PKGDIR}/ \; \
+                2>/dev/null || true
 
             printf 'devel/libudev-devd\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots019\nx11-toolkits/wlroots020\n' > /tmp/pkglist
             set +e
