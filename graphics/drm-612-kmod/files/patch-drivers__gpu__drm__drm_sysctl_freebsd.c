@@ -1,5 +1,3 @@
-diff --git a/drivers/gpu/drm/drm_sysctl_freebsd.c b/drivers/gpu/drm/drm_sysctl_freebsd.c
-index b9eca7a53c..f1e3c465b6 100644
 --- a/drivers/gpu/drm/drm_sysctl_freebsd.c
 +++ b/drivers/gpu/drm/drm_sysctl_freebsd.c
 @@ -52,6 +52,8 @@ extern unsigned int drm_timestamp_precision;
@@ -8,13 +6,13 @@ index b9eca7a53c..f1e3c465b6 100644
  static int	   drm_vblank_info DRM_SYSCTL_HANDLER_ARGS;
 +static int	   drm_primary_devnum_handler DRM_SYSCTL_HANDLER_ARGS;
 +static int	   drm_render_devnum_handler DRM_SYSCTL_HANDLER_ARGS;
- 
+
  struct drm_sysctl_list {
  	const char *name;
 @@ -140,6 +142,15 @@ drm_sysctl_init(struct drm_device *dev)
- 
+
  	drm_add_busid_modesetting(dev, &info->ctx, top);
- 
+
 +	SYSCTL_ADD_PROC(&info->ctx, SYSCTL_CHILDREN(top), OID_AUTO,
 +	    "primary_devnum", CTLTYPE_UINT | CTLFLAG_RD,
 +	    dev, 0, drm_primary_devnum_handler, "IU",
