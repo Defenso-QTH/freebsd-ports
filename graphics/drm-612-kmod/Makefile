@@ -21,6 +21,7 @@ CONFLICTS_INSTALL=	drm-latest-kmod \
 			drm-66-kmod
 
 USES=		kmod uidfix compiler:c++11-lang
+PATCH_STRIP=	-p1
 
 USE_GITHUB=	yes
 GH_ACCOUNT=	freebsd
