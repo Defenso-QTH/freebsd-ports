@@ -93,7 +93,7 @@ jobs:
 
             printf 'devel/libudev-devd\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots019\nx11-toolkits/wlroots020\n' > /tmp/pkglist
             set +e
-            poudriere bulk -j j151 -p local -f /tmp/pkglist
+            poudriere bulk -j j151 -p local -J 1 -f /tmp/pkglist
             BULK_EXIT=$?
             set -e
 
