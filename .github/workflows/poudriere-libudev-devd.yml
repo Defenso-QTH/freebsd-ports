@@ -54,8 +54,10 @@ jobs:
             set -eux
             export ASSUME_ALWAYS_YES=yes
 
-            # 4 GB swap file so llvm19 and cargo-c don't OOM when building in parallel
-            dd if=/dev/zero of=/swapfile bs=1m count=4096 status=none
+            # 4 GB swap so llvm19 and cargo-c don't OOM when building in parallel.
+            # truncate creates a sparse file (instant, no disk pressure); mdconfig
+            # presents it as a block device; blocks are allocated on demand.
+            truncate -s 4g /swapfile
             chmod 0600 /swapfile
             mdconfig -a -t vnode -f /swapfile -u 0
             swapon /dev/md0
