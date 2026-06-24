@@ -75,8 +75,13 @@ jobs:
             # build seatd with a Defenso-specific compiled-in socket path
             # (sysutils/seatd reads SEATD_SOCKET -> meson -Ddefaultpath)
             mkdir -p /usr/local/etc/poudriere.d
-            echo 'SEATD_SOCKET=/var/run/seatd/seatd.sock' \
-                > /usr/local/etc/poudriere.d/make.conf
+            # Disable wlroots' X11 (Xwayland) option here rather than in the
+            # port: Xwayland drags in gtk3 and a full desktop stack (~40 min).
+            # OPTIONS_NAME = PKGORIGIN with '/' -> '_'.
+            { echo 'SEATD_SOCKET=/var/run/seatd/seatd.sock'
+              echo 'x11-toolkits_wlroots019_UNSET+=X11'
+              echo 'x11-toolkits_wlroots020_UNSET+=X11'
+            } > /usr/local/etc/poudriere.d/make.conf
 
             # populate poudriere dirs from cache (no-op on first run)
             mkdir -p poudriere-cache/packages poudriere-cache/distfiles
