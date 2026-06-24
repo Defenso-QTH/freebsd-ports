@@ -104,7 +104,7 @@ jobs:
             ASSUME_ALWAYS_YES=yes pkg fetch -y -d \
                 python311 cmake llvm19 mesa-dri mesa-libs rust \
                 2>&1 | tail -20 || true
-            find /var/cache/pkg -name '*.pkg' -exec cp -n {} ${PKGDIR}/ \; \
+            find /var/cache/pkg -name '*.pkg' -exec cp -f {} ${PKGDIR}/ \; \
                 2>/dev/null || true
 
             printf 'devel/libudev-devd\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots019\nx11-toolkits/wlroots020\n' > /tmp/pkglist
