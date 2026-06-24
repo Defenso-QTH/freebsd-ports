@@ -11,9 +11,10 @@ permissions:
   id-token: write
 
 concurrency:
-  # Serialise the two FreeBSD-VM workflows so they don't race for QEMU
-  # resources; drm-kmod uses the same group key and will queue behind this.
-  group: freebsd-vm-${{ github.ref_name }}
+  # Per-workflow group: this serialises repeat runs of *this* workflow on a
+  # branch (so they don't race on its cache/Pages), but lets the separate
+  # drm-kmod workflow run in parallel on its own dedicated runner.
+  group: freebsd-vm-${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:

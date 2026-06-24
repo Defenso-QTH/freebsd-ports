@@ -6,7 +6,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: freebsd-vm-${{ github.ref_name }}
+  # Per-workflow group so this runs in parallel with the libudev-devd
+  # workflow; still serialises repeat runs of this workflow on a branch.
+  group: freebsd-vm-${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
