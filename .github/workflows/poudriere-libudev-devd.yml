@@ -128,7 +128,7 @@ jobs:
             find /var/cache/pkg -name '*.pkg' -exec cp -f {} ${PKGDIR}/ \; \
                 2>/dev/null || true
 
-            printf 'devel/libudev-devd\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots019\nx11-toolkits/wlroots020\nx11-wm/cage\n' > /tmp/pkglist
+            printf 'devel/libudev-devd\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots020\nx11-wm/cage\n' > /tmp/pkglist
             set +e
             poudriere bulk -j j151 -p local -J 1 -f /tmp/pkglist
             BULK_EXIT=$?
