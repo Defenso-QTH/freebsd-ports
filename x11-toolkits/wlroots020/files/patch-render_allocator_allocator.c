@@ -1,56 +1,50 @@
 --- render/allocator/allocator.c.orig
 +++ render/allocator/allocator.c
-@@ -1,8 +1,14 @@
+@@ -1,6 +1,10 @@
  #include <assert.h>
  #include <fcntl.h>
  #include <stdlib.h>
-+#include <sys/stat.h>
 +#ifdef __FreeBSD__
 +#include <stdio.h>
 +#include <sys/sysctl.h>
-+extern char *devname_r(dev_t, int, char *, int);
 +#endif
  #include <unistd.h>
  #include <wlr/backend.h>
  #include <wlr/config.h>
- #include <wlr/interfaces/wlr_buffer.h>
- #include <wlr/render/allocator.h>
-@@ -53,6 +59,40 @@
+@@ -35,6 +39,26 @@ void wlr_allocator_init(struct wlr_allocator *alloc,
+ /* Re-open the DRM node to avoid GEM handle ref'counting issues. See:
+  * https://gitlab.freedesktop.org/mesa/drm/-/merge_requests/110
+  */
++#ifdef __FreeBSD__
++/* Find a render node via the stock dev.drm.<minor> sysctl tree: render nodes
++ * are minors 128-191.  Single-GPU shortcut: return the first one present.
++ * Avoids libdrm's devfs scan, which fails inside a jail. */
++static char *freebsd_render_node(void) {
++	for (int m = 128; m < 192; m++) {
++		char mib[32];
++		size_t sz = 0;
++		snprintf(mib, sizeof(mib), "dev.drm.%d.PCI_ID", m);
++		if (sysctlbyname(mib, NULL, &sz, NULL, 0) != 0) {
++			continue;
++		}
++		char path[32];
++		snprintf(path, sizeof(path), "/dev/drm/%d", m);
++		return strdup(path);
++	}
++	return NULL;
++}
++#endif
++
+ static int reopen_drm_node(int drm_fd, bool allow_render_node) {
+ 	if (drmIsMaster(drm_fd)) {
+ 		// Only recent kernels support empty leases
+@@ -53,6 +77,11 @@ static int reopen_drm_node(int drm_fd, bool allow_render_node) {
  	char *name = NULL;
  	if (allow_render_node) {
  		name = drmGetRenderDeviceNameFromFd(drm_fd);
 +#ifdef __FreeBSD__
-+		/* drmGetRenderDeviceNameFromFd scans devfs and fails in jails.
-+		 * Fall back to hw.dri.N.{primary,render}_devnum sysctls. */
 +		if (name == NULL) {
-+			struct stat st;
-+			if (fstat(drm_fd, &st) == 0) {
-+				char mib[64];
-+				unsigned int devnum;
-+				size_t sz;
-+				int n;
-+				for (n = 0; n <= 9; n++) {
-+					snprintf(mib, sizeof(mib), "hw.dri.%d.primary_devnum", n);
-+					sz = sizeof(devnum);
-+					if (sysctlbyname(mib, &devnum, &sz, NULL, 0) < 0)
-+						continue;
-+					if ((dev_t)devnum != st.st_rdev)
-+						continue;
-+					snprintf(mib, sizeof(mib), "hw.dri.%d.render_devnum", n);
-+					sz = sizeof(devnum);
-+					if (sysctlbyname(mib, &devnum, &sz, NULL, 0) < 0)
-+						break;
-+					char devname[64];
-+					if (devname_r((dev_t)devnum, 0, devname, sizeof(devname)) == NULL)
-+						break;
-+					char path[80];
-+					snprintf(path, sizeof(path), "/dev/%s", devname);
-+					name = strdup(path);
-+					wlr_log(WLR_DEBUG,
-+						"Found render node '%s' via hw.dri.%d sysctls", path, n);
-+					break;
-+				}
-+			}
++			name = freebsd_render_node();
 +		}
 +#endif
  	}
