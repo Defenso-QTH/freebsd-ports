@@ -12,78 +12,58 @@
  #include <unistd.h>
  #include <wlr/backend.h>
  #include <wlr/config.h>
-@@ -35,6 +40,64 @@ void wlr_allocator_init(struct wlr_allocator *alloc,
+@@ -35,6 +40,44 @@ void wlr_allocator_init(struct wlr_allocator *alloc,
  /* Re-open the DRM node to avoid GEM handle ref'counting issues. See:
   * https://gitlab.freedesktop.org/mesa/drm/-/merge_requests/110
   */
 +#ifdef __FreeBSD__
-+/* Resolve the render node for a primary DRM fd inside a jail using only an
-+ * ioctl plus stock sysctls.  libdrm's drmGetRenderDeviceNameFromFd() scans
-+ * devfs and drmGetDevice2() opens /dev/pci, both of which fail in a jail.
++/* Resolve a render node from the stock dev.drm.<minor> sysctl tree (render
++ * nodes are minors 128-191).  Inside a jail the fd cannot be mapped to a
++ * specific GPU: libdrm's drmGetRenderDeviceNameFromFd()/drmGetDevice2() scan
++ * devfs / open /dev/pci, and drmGetBusid() returns an empty string on modern
++ * KMS drivers (amdgpu).
 + *
-+ *   1. drmGetBusid(fd)            -> PCI busid           (DRM_IOCTL_GET_UNIQUE)
-+ *   2. hw.dri.N.busid match       -> card index N        (sysctl)
-+ *   3. dev.drm.N.PCI_ID           -> primary's PCI_ID     (sysctl)
-+ *   4. dev.drm.<m>.PCI_ID (m>=128) matching PCI_ID -> /dev/drm/<m>
-+ *
-+ * Pairs primary and render of the same GPU by PCI_ID (correct for hybrid
-+ * iGPU+dGPU).  Returns NULL -- rather than guessing -- if the GPU cannot be
-+ * identified, so a broken busid lookup fails loudly instead of silently
-+ * selecting the wrong render node. */
-+static char *freebsd_render_node(int drm_fd) {
-+	char pci_id[64];
-+	int have_pci = 0;
-+	char *busid = drmGetBusid(drm_fd);
-+	if (busid != NULL) {
-+		for (int n = 0; n < 64 && !have_pci; n++) {
-+			char mib[32], val[256];
-+			size_t sz = sizeof(val);
-+			snprintf(mib, sizeof(mib), "hw.dri.%d.busid", n);
-+			if (sysctlbyname(mib, val, &sz, NULL, 0) != 0 ||
-+					strcmp(val, busid) != 0) {
-+				continue;
-+			}
-+			snprintf(mib, sizeof(mib), "dev.drm.%d.PCI_ID", n);
-+			sz = sizeof(pci_id);
-+			if (sysctlbyname(mib, pci_id, &sz, NULL, 0) == 0) {
-+				have_pci = 1;
-+			}
-+		}
-+	}
-+	if (!have_pci) {
-+		wlr_log(WLR_ERROR, "Cannot identify GPU for DRM fd (busid '%s'): "
-+			"no matching hw.dri.N.busid / dev.drm.N.PCI_ID",
-+			busid ? busid : "(null)");
-+		drmFreeBusid(busid);
-+		return NULL;
-+	}
-+	drmFreeBusid(busid);
++ * When exactly one render node exists it is unambiguously the right one
++ * (single GPU, or a display-only primary paired with one render GPU), so use
++ * it.  With several render nodes we can't tell which belongs to this fd, so
++ * fail loudly rather than render on the wrong GPU. */
++static char *freebsd_render_node(void) {
++	int found = -1, count = 0;
 +	for (int m = 128; m < 192; m++) {
-+		char mib[32], val[64];
-+		size_t sz = sizeof(val);
++		char mib[32];
++		size_t sz = 0;
 +		snprintf(mib, sizeof(mib), "dev.drm.%d.PCI_ID", m);
-+		if (sysctlbyname(mib, val, &sz, NULL, 0) != 0 ||
-+				strcmp(val, pci_id) != 0) {
++		if (sysctlbyname(mib, NULL, &sz, NULL, 0) != 0) {
 +			continue;
 +		}
-+		char path[32];
-+		snprintf(path, sizeof(path), "/dev/drm/%d", m);
-+		return strdup(path);
++		if (count++ == 0) {
++			found = m;
++		}
 +	}
-+	return NULL;
++	if (count == 0) {
++		return NULL;
++	}
++	if (count > 1) {
++		wlr_log(WLR_ERROR, "Multiple DRM render nodes present; cannot select "
++			"the one for this GPU inside a jail");
++		return NULL;
++	}
++	char path[32];
++	snprintf(path, sizeof(path), "/dev/drm/%d", found);
++	return strdup(path);
 +}
 +#endif
 +
  static int reopen_drm_node(int drm_fd, bool allow_render_node) {
  	if (drmIsMaster(drm_fd)) {
  		// Only recent kernels support empty leases
-@@ -53,6 +116,11 @@ static int reopen_drm_node(int drm_fd, bool allow_render_node) {
+@@ -53,6 +96,11 @@ static int reopen_drm_node(int drm_fd, bool allow_render_node) {
  	char *name = NULL;
  	if (allow_render_node) {
  		name = drmGetRenderDeviceNameFromFd(drm_fd);
 +#ifdef __FreeBSD__
 +		if (name == NULL) {
-+			name = freebsd_render_node(drm_fd);
++			name = freebsd_render_node();
 +		}
 +#endif
  	}
