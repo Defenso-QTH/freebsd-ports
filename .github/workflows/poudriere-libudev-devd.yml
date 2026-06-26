@@ -7,14 +7,12 @@ on:
 
 permissions:
   contents: read
-  actions: read   # gh run list/download for the drm-kmod artifact
   pages: write
   id-token: write
 
 concurrency:
-  # Per-workflow group: this serialises repeat runs of *this* workflow on a
-  # branch (so they don't race on its cache/Pages), but lets the separate
-  # drm-kmod workflow run in parallel on its own dedicated runner.
+  # Serialise repeat runs of this workflow on a branch so they don't race
+  # on the shared poudriere cache or the Pages deploy.
   group: freebsd-vm-${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: false
 
@@ -60,25 +58,6 @@ jobs:
           key: poudriere-${{ runner.os }}-15.1-${{ github.sha }}
           restore-keys: |
             poudriere-${{ runner.os }}-15.1-
-
-      - name: fetch latest drm-kmod packages
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Download drm-kmod's packages here (gh is only on the runner) so the
-          # VM step can merge them into the repo and rebuild the catalog.
-          DRMRUN=$(gh run list \
-            --repo "${{ github.repository }}" \
-            --workflow poudriere-drm-kmod.yml \
-            --branch "${{ github.ref_name }}" \
-            --status success --limit 1 \
-            --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
-          if [ -n "$DRMRUN" ]; then
-            gh run download "$DRMRUN" \
-              --repo "${{ github.repository }}" \
-              --name pkg-repo-drm-kmod --dir drm-repo 2>/dev/null || true
-          fi
-          [ -d drm-repo ] && find drm-repo -name '*.pkg' | head || echo "no drm-kmod packages"
 
       - name: poudriere bulk build (FreeBSD VM)
         uses: vmactions/freebsd-vm@v1
@@ -166,18 +145,6 @@ jobs:
             SRC=/poudriere/data/packages/j151-local/.latest
             [ -e "$SRC" ] || SRC=/poudriere/data/packages/j151-local
             cp -RL "$SRC"/. repo/
-
-            # Merge drm-kmod packages (downloaded on the runner before this
-            # step) and rebuild the repo catalog so pkg actually sees them.
-            # cp alone is not enough: packagesite.pkg must be regenerated.
-            # Copy only real packages from All/ (packagesite.pkg / data.pkg
-            # are also *.pkg and must not be cataloged as packages).
-            if [ -d drm-repo/All ]; then
-                find drm-repo/All -name '*.pkg' -exec cp -n {} repo/All/ \; \
-                    2>/dev/null || true
-                pkg repo repo
-                echo "merged drm-kmod packages and rebuilt catalog"
-            fi
             ls -lR repo | head -n 40
 
             exit ${BULK_EXIT}
