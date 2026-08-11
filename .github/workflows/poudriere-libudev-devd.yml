@@ -1,0 +1,366 @@
+name: poudriere-libudev-devd
+
+on:
+  push:
+    branches: [ 'ci-poudriere' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  # Serialise repeat runs of this workflow on a branch so they don't race
+  # on the shared poudriere cache or the Pages deploy.
+  group: freebsd-vm-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  poudriere:
+    runs-on: ubuntu-24.04
+    # poudriere in a nested FreeBSD VM is slow; meson pulls in python, which
+    # is the long pole. Stay under the 6h hosted-runner hard limit.
+    timeout-minutes: 350
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: check out repo
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+          sparse-checkout-cone-mode: false
+
+      - name: free up runner disk space
+        run: |
+          # The QEMU VM dies ("server 127.0.0.1 not responding") — or the
+          # runner itself aborts with "No space left on device" — when the
+          # host runner fills up: the restored poudriere cache (rust/llvm/
+          # mesa/gtk3 packages + distfiles) plus the VM image and the
+          # copyback of the grown cache exhaust the ~14 GB default free
+          # space.  virglrenderer (VENUS option on) pulls in the Vulkan
+          # loader/headers and libepoll-shim, enlarging the cache further, so
+          # be aggressive: reclaim ~40 GB of preinstalled tooling we don't use.
+          sudo rm -rf \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache \
+            /usr/share/swift \
+            /usr/local/share/powershell \
+            /usr/lib/jvm \
+            /usr/share/miniconda \
+            /usr/local/lib/node_modules \
+            /opt/google /opt/microsoft /opt/pipx \
+            /usr/local/share/vcpkg /usr/local/share/chromium \
+            /usr/local/graalvm /usr/share/kotlinc /usr/local/julia* \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /opt/az \
+            /imagegeneration
+          sudo apt-get purge -y '^dotnet-.*' '^llvm-.*' '^php.*' \
+            azure-cli google-chrome-stable firefox mono-devel >/dev/null 2>&1 || true
+          sudo apt-get autoremove -y >/dev/null 2>&1 || true
+          sudo apt-get clean
+          sudo docker image prune --all --force >/dev/null 2>&1 || true
+          df -h /
+
+      - name: restore poudriere cache
+        uses: actions/cache@v4
+        with:
+          # Distfiles only.  The packages half was ~10 GB and landed on disk
+          # three times -- restored on the runner, synced into the VM
+          # (copyback: true), then copied again into /poudriere -- which is
+          # what exhausted the runner ("No space left on device", run
+          # 31426752204, 2026-08-10).  Pre-seeding from pkg.freebsd.org fetches
+          # the same heavy binaries on every run anyway, so caching them bought
+          # little and cost the build.
+          path: |
+            poudriere-cache/distfiles
+          key: poudriere-${{ runner.os }}-15.1-${{ github.sha }}
+          restore-keys: |
+            poudriere-${{ runner.os }}-15.1-
+
+      - name: poudriere bulk build (FreeBSD VM)
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "15.1"
+          usesh: true
+          # 10 GB (runner has 16 GB): near-eliminates swapping.  Two prior
+          # runs died with "pkg-static: ... Bad file descriptor" while
+          # installing py312 packages (thousands of small .pyc files); the
+          # EBADF is triggered by swap I/O to the vnode-md /swapfile
+          # contending with pkg's extraction under the old 6 GB ceiling.
+          mem: 10240
+          cpu: 4
+          copyback: true
+          run: |
+            set -eux
+            export ASSUME_ALWAYS_YES=yes
+
+            # Pre-seed from pkg.freebsd.org *latest* (not the VM's quarterly
+            # default).  Our ports tree is resynced onto upstream main, which
+            # matches the latest snapshot, so latest binaries version-match the
+            # tree and poudrière accepts them instead of rebuilding.
+            #
+            # Flip the stock repo in place rather than writing a url-only
+            # override in /usr/local/etc/pkg/repos: a bare override REPLACES the
+            # whole "FreeBSD" repo object, dropping mirror_type/signature_type/
+            # fingerprints and breaking signature verification ("Error updating
+            # repositories! ... pkg+:// implies SRV mirror type").  The in-place
+            # edit keeps every other field and only swaps the branch.  Must run
+            # before the first pkg operation.  The leading '/' matches only the
+            # main ".../quarterly" url, not "kmods_quarterly_*" (which we don't
+            # use), so kmods is left untouched.
+            sed -i '' 's#/quarterly#/latest#' /etc/pkg/FreeBSD.conf
+            grep -n 'quarterly\|latest' /etc/pkg/FreeBSD.conf || true
+
+            # 2 GB swap safety net; dd pre-allocates so swap I/O is fast (no
+            # UFS sparse-block-allocation latency when pages are actually
+            # swapped).  Kept small: with mem=10240 swapping is rare, and the
+            # swapfile lives inside the VM image on the space-constrained
+            # /home/runner filesystem, so a larger file just wastes host disk.
+            dd if=/dev/zero of=/swapfile bs=1m count=2048
+            chmod 0600 /swapfile
+            mdconfig -a -t vnode -f /swapfile -u 0
+            swapon /dev/md0
+
+            pkg install -y poudriere git
+
+            # Write the RSA private key for signing the pkg repo catalogue.
+            printf '%s' '${{ secrets.PKG_REPO_SIGNING_KEY }}' \
+                > /usr/local/etc/poudriere-repo.key
+            chmod 600 /usr/local/etc/poudriere-repo.key
+
+            # poudriere in directory mode (the VM image is not ZFS)
+            # CHECK_CHANGED_DEPS=no: keep pre-seeded binaries whose version
+            # matches the tree even when a build dependency's origin/version
+            # churned (e.g. the lang/llvm19 -> devel/llvm19 recategorisation).
+            # Runtime-dep availability is still enforced, so a real ABI bump
+            # (a missing runtime lib) still forces a rebuild.
+            { echo NO_ZFS=yes
+              echo BASEFS=/poudriere
+              echo DISTFILES_CACHE=/poudriere/distfiles
+              echo RESOLV_CONF=/etc/resolv.conf
+              echo ALLOW_MAKE_JOBS=yes
+              echo CHECK_CHANGED_DEPS=no
+              echo CHECK_CHANGED_OPTIONS=no
+              # ATOMIC_PACKAGE_REPOSITORY=yes (the default) sets PACKAGES to
+              # .building/ inside the packages dir.  All our pre-seeding,
+              # .jailversion deletion, and Latest/pkg.pkg symlink must match
+              # what poudrière uses for ${PACKAGES}.  Setting =no keeps
+              # PACKAGES at the plain j151-local/ path we pre-seed into.
+              echo ATOMIC_PACKAGE_REPOSITORY=no
+            } > /usr/local/etc/poudriere.conf
+            mkdir -p /poudriere/data/packages /poudriere/distfiles
+
+            # build seatd with a Defenso-specific compiled-in socket path
+            # (sysutils/seatd reads SEATD_SOCKET -> meson -Ddefaultpath)
+            mkdir -p /usr/local/etc/poudriere.d
+            echo 'SEATD_SOCKET=/var/run/seatd/seatd.sock' \
+                > /usr/local/etc/poudriere.d/make.conf
+
+            # populate poudriere dirs from cache (no-op on first run)
+            mkdir -p poudriere-cache/distfiles
+            cp -a poudriere-cache/distfiles/. /poudriere/distfiles/ || true
+            df -h / | tail -1
+
+            git clone --depth 1 --branch ci-poudriere \
+                https://github.com/Defenso-QTH/freebsd-ports.git /poudriere-ports
+            # Remove git metadata so poudrière cannot compute a ports-tree hash.
+            # Without it, packages are named 'foo-1.2.3' (plain) rather than
+            # 'foo-1.2.3~<treehash>'.  Pre-seeded plain packages from
+            # pkg.freebsd.org then match exactly and are not discarded.
+            rm -rf /poudriere-ports/.git
+
+            # build jail (downloads 15.1-RELEASE base) + register the ports tree
+            poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
+            poudriere ports -c -p local -m null -M /poudriere-ports
+
+            # Pre-seed heavy binary packages from pkg.freebsd.org.  Because .git
+            # was stripped above, poudrière compares plain version strings and
+            # accepts these without rebuilding (~3 hours of rust/llvm19/cmake saved).
+            PKGDIR=/poudriere/data/packages/j151-local/All
+            mkdir -p ${PKGDIR}
+
+            pkg update || true
+
+            # -d pulls all transitive deps.  Do NOT use -o: on this runner pkg
+            # always writes to /var/cache/pkg regardless, so -o produces 0 files
+            # in the target dir.  Fetch without -o, then copy from the cache.
+            # A single invalid name aborts the whole fetch, so all names here
+            # are validated against packagesite.yaml.
+            #
+            # The second block below is the "build-dep gap" set: ports that
+            # `pkg fetch -d <runtime-target>` does NOT pull (they are build-only
+            # deps — sphinx docs, maturin/pybind11/scikit-build build tools, the
+            # google-re2/re2/abseil C++ stack, lxml) and so were compiled from
+            # source on every run (uv+mesa aside, these dominated build time and
+            # the VM disk).  Every name was cross-checked against the latest
+            # packagesite AND our (latest-resynced) ports tree: with both on
+            # latest the versions match by construction, so poudrière accepts
+            # the binaries instead of rebuilding.  Graphics ports (mesa/...) are
+            # intentionally NOT here: our custom libdrm-2.4.134 makes poudrière
+            # delete pkg.freebsd.org's mesa (built against libdrm-2.4.133) and
+            # rebuild it regardless.
+            pkg fetch -y -d \
+                pkg python311 python312 cmake-core llvm19 mesa-dri mesa-libs rust \
+                wayland wayland-protocols libglvnd pixman libxkbcommon \
+                perl5 libpciaccess libevdev libmtdev libwacom libinput \
+                libudev-devd \
+                libxcb xcb-util xcb-util-wm xcb-util-image xcb-util-renderutil \
+                xcb-util-keysyms libX11 libXext libXdmcp libXau \
+                glib wlroots020 \
+                meson ninja gmake pkgconf \
+                glslang spirv-tools spirv-headers evdev-proto hwdata scdoc \
+                py312-fido2 py312-hidapi py312-poetry py312-poetry-core py312-tqdm \
+                py312-intelhex py312-pyusb py312-cffi py312-crcmod \
+                py312-protobuf py312-semver py312-tlv8 py312-pyserial \
+                py312-requests py312-certifi py312-urllib3 \
+                py312-python-dateutil py312-typing-extensions \
+                py312-importlib-metadata py312-click py312-nkdfu \
+                py312-fire py312-libusb1 py312-flit-core \
+                abseil libgit2 libgudev llhttp re2 \
+                py312-Jinja2 py312-SecretStorage py312-accessible-pygments \
+                py312-alabaster py312-cachecontrol py312-click-default-group \
+                py312-coherent.licensed py312-findpython py312-furo \
+                py312-google-re2 py312-google-re2-stubs py312-h2 \
+                py312-hatch-fancy-pypi-readme py312-hatch-vcs py312-html5lib \
+                py312-httpcore py312-httpx py312-imagesize py312-incremental \
+                py312-keyring py312-lxml py312-maturin py312-proselint \
+                py312-pybind11 py312-pystemmer py312-python-discovery py312-pyudev \
+                py312-requests-toolbelt py312-roman-numerals py312-scikit-build-core \
+                py312-semantic-version py312-soupsieve py312-sphinx \
+                py312-sphinx-autodoc-typehints py312-sphinx-basic-ng \
+                py312-sphinx-copybutton py312-sphinx-inline-tabs \
+                py312-sphinxcontrib-applehelp py312-sphinxcontrib-devhelp \
+                py312-sphinxcontrib-htmlhelp py312-sphinxcontrib-jsmath \
+                py312-sphinxcontrib-mermaid py312-sphinxcontrib-qthelp \
+                py312-sphinxcontrib-serializinghtml py312-sphinxcontrib-towncrier \
+                py312-towncrier py312-virtualenv py312-webencodings \
+                2>&1 || echo "WARNING: pkg fetch returned non-zero"
+            find /var/cache/pkg -name '*.pkg' \
+                -exec cp -f {} ${PKGDIR}/ \; 2>/dev/null || true
+            echo "Packages in All/: $(ls ${PKGDIR}/*.pkg 2>/dev/null | wc -l)"
+
+            # ensure_pkg_installed (common.sh:10381) checks for Latest/pkg.pkg
+            # (PKG_BIN=/.p/pkg-static, extracted from Latest/pkg.pkg via tar).
+            # Copying /usr/local/sbin/pkg is wrong — this symlink is the fix.
+            mkdir -p /poudriere/data/packages/j151-local/Latest
+            PKG_PKG=$(ls ${PKGDIR}/pkg-*.pkg 2>/dev/null | head -1)
+            if [ -n "${PKG_PKG}" ]; then
+                ln -sf "../All/$(basename ${PKG_PKG})" \
+                    /poudriere/data/packages/j151-local/Latest/pkg.pkg
+            fi
+
+            # common.sh:10301 wipes All/ when .jailversion (written by the
+            # previous run) doesn't match the freshly-created jail's version.
+            # Deleting it skips the check; poudrière writes a fresh one after
+            # the build completes.
+            rm -f /poudriere/data/packages/j151-local/.jailversion
+
+            echo "=== pre-seed check ==="
+            for p in pkg llvm19 rust mesa-dri mesa-libs python311 python312 cmake-core perl5 libpciaccess libevdev libinput libudev-devd wayland pixman; do
+                ls ${PKGDIR}/${p}-*.pkg 2>/dev/null \
+                    && echo "  OK: ${p}" || echo "  MISSING: ${p}"
+            done
+
+            # Two-phase build to avoid a 27-min cmake-core rebuild.  Our
+            # main-resynced tree is ahead of pkg.freebsd.org *latest* on pkg
+            # (tree wants pkg-2.8.1_1; latest serves 2.7.5, which the pre-seed
+            # fetches).  poudrière's stale-package prune runs *before* it builds
+            # anything, so on a single bulk it deletes the pre-seeded cmake-core
+            # ("missing dependency: pkg-2.8.1_1") and rebuilds it from source
+            # (~27 min, ~90% of the run).  Instead:
+            #   1. Build the tree's pkg on its own (~2 min) so pkg-2.8.1_1 exists.
+            #   2. Re-seed the fetched binaries (the phase-1 prune removed
+            #      cmake-core; put it back) now that pkg-2.8.1_1 is available.
+            #   3. Main bulk: its prune now finds pkg-2.8.1_1 and keeps cmake-core.
+            # Deterministic and cache-independent (the actions/cache is too large
+            # to reliably survive GitHub's 10 GB eviction, so we can't rely on it
+            # carrying pkg-2.8.1_1 forward).
+            poudriere bulk -j j151 -p local ports-mgmt/pkg || true
+            find /var/cache/pkg -name '*.pkg' \
+                -exec cp -f {} ${PKGDIR}/ \; 2>/dev/null || true
+
+            # devel/libudev-devd is no longer listed: it is identical to
+            # upstream since v0.7.0 landed, so the pre-seeded binary from
+            # pkg.freebsd.org version-matches and there is nothing of ours to
+            # build into it.  It is still fetched above -- wlroots020 and
+            # libinput link against it, so the package must exist in the repo
+            # either way; it just arrives prebuilt rather than compiled here.
+            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots020\nx11/virglrenderer\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\nsecurity/py-nitrokey\ncomms/py-pynitrokey\nsecurity/py-nethsm\n' > /tmp/pkglist
+            set +e
+            poudriere bulk -j j151 -p local -J 3 -f /tmp/pkglist
+            BULK_EXIT=$?
+            set -e
+
+            # collect per-port error logs; also cat them so the error is
+            # visible directly in the CI job output even if artifact upload fails
+            mkdir -p build-logs
+            ERRDIR=/poudriere/data/logs/bulk/j151-local/latest/logs/errors
+            if [ -d "${ERRDIR}" ]; then
+                for f in "${ERRDIR}"/*.log; do
+                    [ -f "$f" ] || continue
+                    cp "$f" build-logs/
+                    echo "=== $(basename $f) ==="
+                    tail -100 "$f"
+                done
+            fi
+
+            # always sync cache and export repo, even when some ports failed
+            cp -a /poudriere/distfiles/. poudriere-cache/distfiles/ || true
+            df -h / | tail -1
+
+            # Build a minimal signed repo containing only our custom packages.
+            # Pre-seeded binaries (llvm19, rust, mesa, cmake, ...) are already
+            # on pkg.freebsd.org; publishing them here would bloat the Pages
+            # site to ~1 GB for no benefit.  Clients need both this repo and
+            # pkg.freebsd.org configured.
+            PKGDIR=/poudriere/data/packages/j151-local/All
+            rm -rf repo && mkdir -p repo/All
+            for p in drm-612-kmod libudev-devd libdrm libdrm-devel libinput seatd wlroots020 virglrenderer vulkan-loader vulkan-headers libepoll-shim vm-bhyve bhyve-viewer py312-nitrokey py312-pynitrokey py312-nethsm; do
+                cp ${PKGDIR}/${p}-*.pkg repo/All/ 2>/dev/null || true
+            done
+            # The retired virglrenderer-mvisor fork lingers in poudriere's
+            # PKGDIR from earlier runs, and the 'virglrenderer-*' glob above
+            # re-copies it — which lets bhyve's libvirglrenderer.so.1 shlib
+            # resolve to the stale fork on the host.  Drop it so the published
+            # repo offers only the stock virglrenderer.
+            rm -f repo/All/virglrenderer-mvisor-*.pkg
+            pkg repo repo /usr/local/etc/poudriere-repo.key
+            ls -lh repo/All/
+            echo "Repo size: $(du -sh repo | cut -f1)"
+
+            # poudrière exits 1 both when builds fail and when its own pkg repo
+            # creation fails (e.g. nothing queued, or no signing key set).
+            # Use the errors/ directory as the authoritative signal instead.
+            if ls "${ERRDIR}"/*.log >/dev/null 2>&1; then
+                exit 1
+            fi
+            exit 0
+
+      - name: upload package repo (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkg-repo
+          path: repo
+          retention-days: 7
+
+      - name: upload poudriere error logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poudriere-error-logs
+          path: build-logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: repo
+
+      - name: deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+

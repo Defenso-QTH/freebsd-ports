@@ -1,14 +1,18 @@
 PORTNAME=	virglrenderer
-DISTVERSION=	1.2.0
+DISTVERSION=	1.3.0.20260720
+PORTREVISION=	14
 CATEGORIES=	x11
 
-MAINTAINER=	monwarez@mailoo.org
-COMMENT=	VirGL virtual OpenGL renderer
+MAINTAINER=	quentin.thebault@defenso.fr
+COMMENT=	VirGL virtual OpenGL and Vulkan (venus) renderer
 WWW=		https://virgil3d.github.io/
 
 LICENSE=	MIT
 LICENSE_FILE=	${WRKSRC}/COPYING
 
+# Pinned to a git main snapshot (2026-07-20, "Uprev Mesa"): the venus
+# renderer/proxy must match the guest's bleeding-edge Mesa (26.1) for
+# Vulkan-over-virtio to work; released 1.2.0/1.3.0 are too old.
 BUILD_DEPENDS=	${PYTHON_PKGNAMEPREFIX}pyyaml>=0:devel/py-pyyaml@${PY_FLAVOR}
 LIB_DEPENDS=	libdrm.so:graphics/libdrm \
 		libepoxy.so:graphics/libepoxy
@@ -19,6 +23,7 @@ CPE_VENDOR=	${PORTNAME}_project
 USE_GITLAB=	yes
 GL_SITE=	https://gitlab.freedesktop.org
 GL_ACCOUNT=	virgl
+GL_COMMIT=	9ae1fb1cca8ec884f5e44d6ae09425288aeae4cd
 USE_GL=		gbm
 USE_XORG=	x11
 

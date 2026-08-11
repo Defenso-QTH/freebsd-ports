@@ -1,0 +1,30 @@
+Do not filter /dev/dri entries on d_type when looking for a render node.
+
+DT_UNKNOWN is a legal reply from any filesystem, so requiring DT_CHR is
+already fragile on Linux.  On FreeBSD it never matches: /dev/dri/renderD*
+are devfs aliases (symlinks, DT_LNK) to the real character devices in
+/dev/drm/, and devfs reports DT_LNK for them correctly -- the entry really
+is a symlink, so this is not a devfs bug to be worked around here.
+
+The renderD* name match, followed by open() and drmGetVersion() just below,
+is complete validation on its own; d_type adds nothing but portability
+hazards.
+
+--- src/vrend/vrend_winsys_gbm.c.orig
++++ src/vrend/vrend_winsys_gbm.c
+@@ -135,9 +135,12 @@ static int rendernode_open(void)
+ 
+    fd = -1;
+    while ((dir_ent = readdir(dir))) {
+-      if (dir_ent->d_type != DT_CHR)
+-         continue;
+-
++      /*
++       * Deliberately no d_type check: DT_UNKNOWN is a legal answer from
++       * any filesystem, and on FreeBSD these entries are devfs aliases
++       * (DT_LNK) to /dev/drm/*.  open() and drmGetVersion() below are
++       * what actually validate the node.
++       */
+       if (strncmp(dir_ent->d_name, "renderD", 7))
+          continue;
+ 

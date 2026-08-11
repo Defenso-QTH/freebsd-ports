@@ -1,0 +1,13 @@
+bhyve-viewer presents a bhyve guest's GPU output in a window on the host's
+Wayland compositor, with no copy and no video encoding in the path.
+
+A guest using virtio-gpu with venus renders on the host GPU, so its images
+are already in host memory.  Running a compositor and VNC server inside the
+guest ships that framebuffer into the guest purely so the guest can capture
+and encode it back out, which costs guest CPU and adds latency for nothing.
+Instead bhyve exports the scanout as a dma_buf and hands the descriptor to
+this program over a unix socket.
+
+Requires a bhyve built with BHYVE_VIRGL_SUPPORT and a virtio-gpu device
+configured with display=unix:/path/to/socket, and a host compositor that
+offers zwp_linux_dmabuf_v1.

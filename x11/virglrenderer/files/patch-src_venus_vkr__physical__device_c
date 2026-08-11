@@ -1,0 +1,46 @@
+--- src/venus/vkr_physical_device.c.orig
++++ src/venus/vkr_physical_device.c
+@@ -61,7 +61,12 @@
+    vkr_gbm_dev = minigbm_create_default_device(&gbm_fd);
+ #else
+    struct virgl_gbm *gbm = virgl_gbm_init(-1);
+-   vkr_gbm_dev = gbm->device;
++   if (!gbm) {
++      vkr_log("virgl_gbm_init(-1) returned NULL; gbm host-visible mem off");
++      vkr_gbm_dev = NULL;
++   } else {
++      vkr_gbm_dev = gbm->device;
++   }
+ #endif /* MINIGBM */
+    if (!vkr_gbm_dev) {
+       vkr_log("vkr_gbm_device_init_once failed");
+@@ -247,6 +252,20 @@
+       else
+          vkr_log("missing VK_EXT_external_memory_dma_buf for gbm import!");
+    }
++
++   if (physical_dev->EXT_external_memory_host) {
++      VkPhysicalDeviceExternalMemoryHostPropertiesEXT host_props = {
++         .sType =
++            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT,
++      };
++      VkPhysicalDeviceProperties2 props2 = {
++         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
++         .pNext = &host_props,
++      };
++      vk->GetPhysicalDeviceProperties2(handle, &props2);
++      physical_dev->min_imported_host_pointer_alignment =
++         host_props.minImportedHostPointerAlignment;
++   }
+ }
+ 
+ static void
+@@ -284,6 +303,8 @@
+          physical_dev->KHR_external_fence_fd = true;
+       else if (!strcmp(props->extensionName, "VK_EXT_external_memory_metal"))
+          physical_dev->EXT_external_memory_metal = true;
++      else if (!strcmp(props->extensionName, "VK_EXT_external_memory_host"))
++         physical_dev->EXT_external_memory_host = true;
+       else if (!strcmp(props->extensionName, "VK_EXT_metal_objects"))
+          physical_dev->EXT_metal_objects = true;
+       else if (!strcmp(props->extensionName, "VK_KHR_portability_subset"))

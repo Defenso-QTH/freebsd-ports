@@ -1,6 +1,6 @@
 PORTNAME=	drm-612-kmod
 DISTVERSION=	${DRM_KMOD_DISTVERSION}
-PORTREVISION=	1
+PORTREVISION=	4
 CATEGORIES=	graphics kld
 
 .include "Makefile.version"
@@ -21,11 +21,12 @@ CONFLICTS_INSTALL=	drm-latest-kmod \
 			drm-66-kmod
 
 USES=		kmod uidfix compiler:c++11-lang
+PATCH_STRIP=	-p1
 
 USE_GITHUB=	yes
-GH_ACCOUNT=	freebsd
+GH_ACCOUNT=	Defenso-QTH
 GH_PROJECT=	drm-kmod
-GH_TAGNAME=	${DRM_KMOD_GH_TAGNAME}
+GH_TAGNAME=	9ccf769375c18c96ec2cabfcfe70804d9cbbea29
 
 .include <bsd.port.options.mk>
 

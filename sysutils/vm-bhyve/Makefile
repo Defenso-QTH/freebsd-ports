@@ -1,15 +1,18 @@
 PORTNAME=	vm-bhyve
 DISTVERSIONPREFIX=	v
 DISTVERSION=	1.7.5
+PORTREVISION=	1
 CATEGORIES=		sysutils
 
-MAINTAINER=	vm-bhyve@FreeBSD.org
+MAINTAINER=	quentin.thebault@defenso.fr
 COMMENT=	Management system for bhyve virtual machines
 WWW=		https://github.com/freebsd/vm-bhyve
 
 LICENSE=	BSD2CLAUSE
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
+# Local patch: RFB (VNC) over a unix-domain socket via graphics_listen="unix:..."
+# (freebsd/vm-bhyve PR #132, not yet in a release).
 USE_GITHUB=	yes
 GH_ACCOUNT=	freebsd
 
