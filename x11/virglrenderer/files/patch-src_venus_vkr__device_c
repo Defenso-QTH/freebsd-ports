@@ -1,0 +1,19 @@
+--- src/venus/vkr_device.c.orig
++++ src/venus/vkr_device.c
+@@ -137,6 +137,7 @@
+    ext_count += physical_dev->KHR_external_memory_fd;
+    ext_count += physical_dev->EXT_external_memory_dma_buf;
+    ext_count += physical_dev->KHR_external_fence_fd;
++   ext_count += physical_dev->EXT_external_memory_host;
+    if (ext_count > args->pCreateInfo->enabledExtensionCount) {
+       exts = malloc(sizeof(*exts) * ext_count);
+       if (!exts) {
+@@ -160,6 +161,8 @@
+          exts[ext_count++] = "VK_EXT_external_memory_dma_buf";
+       if (physical_dev->KHR_external_fence_fd)
+          exts[ext_count++] = "VK_KHR_external_fence_fd";
++      if (physical_dev->EXT_external_memory_host)
++         exts[ext_count++] = "VK_EXT_external_memory_host";
+ 
+       ((VkDeviceCreateInfo *)args->pCreateInfo)->ppEnabledExtensionNames = exts;
+       ((VkDeviceCreateInfo *)args->pCreateInfo)->enabledExtensionCount = ext_count;

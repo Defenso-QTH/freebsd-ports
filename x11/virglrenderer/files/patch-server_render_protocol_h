@@ -1,0 +1,11 @@
+--- server/render_protocol.h.orig
++++ server/render_protocol.h
+@@ -219,7 +219,7 @@ union render_context_op_request {
+    struct render_context_op_submit_fence_request submit_fence;
+ };
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__FreeBSD__)
+ /**
+  * When we do not have SOCK_SEQPACKET support, we need to manage framing.
+  * This will be sent as the header of each packet when necessary.

@@ -1,0 +1,20 @@
+--- src/venus/vkr_device_memory.h.orig
++++ src/venus/vkr_device_memory.h
+@@ -10,6 +10,7 @@
+ 
+ struct gbm_bo;
+ struct vkr_mtl_shm;
++struct vkr_host_shm;
+ 
+ struct vkr_device_memory {
+    struct vkr_object base;
+@@ -29,6 +30,9 @@
+ 
+    /* Metal buffer backed by POSIX shared memory */
+    struct vkr_mtl_shm *mtl_shm;
++
++   /* shm backing host-visible memory imported via VK_EXT_external_memory_host */
++   struct vkr_host_shm *host_shm;
+ 
+    uint64_t allocation_size;
+    uint32_t memory_type_index;
