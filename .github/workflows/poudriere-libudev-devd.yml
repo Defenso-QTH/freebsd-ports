@@ -289,6 +289,33 @@ jobs:
             # libinput link against it, so the package must exist in the repo
             # either way; it just arrives prebuilt rather than compiled here.
             printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots020\nx11/virglrenderer\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\nsecurity/py-nitrokey\ncomms/py-pynitrokey\nsecurity/py-nethsm\n' > /tmp/pkglist
+            # Fail fast on a stale ports pin.
+            #
+            # If the tree's versions drift from what pkg.freebsd.org latest
+            # serves -- in EITHER direction, since latest lags main -- poudriere
+            # discards the pre-seeded binaries and rebuilds the closure.  llvm19
+            # alone is five hours against a six hour job limit, so the run dies
+            # with nothing to show and a misleading "cancelled".
+            #
+            # The queue size says this immediately.  A healthy run queues our
+            # overrides plus mesa (34 on 2026-08-11); a stale pin queued 258.
+            # A dry run costs about a minute and turns four wasted hours into a
+            # clear message.
+            #
+            # To re-pin: read annotations.ports_top_git_hash out of
+            # packagesite.yaml and pin to the newest hash among the packages we
+            # consume -- not to main HEAD.
+            QUEUE=$(poudriere bulk -n -j j151 -p local -f /tmp/pkglist 2>&1 \
+                | grep -oE 'Tobuild: [0-9]+' | tail -1 | grep -oE '[0-9]+')
+            echo "dry run: ${QUEUE:-unknown} ports would be built"
+            if [ -n "${QUEUE}" ] && [ "${QUEUE}" -gt 80 ]; then
+                echo "::error::${QUEUE} ports queued (expected well under 80)."
+                echo "::error::The ports pin has drifted from pkg.freebsd.org latest;"
+                echo "::error::re-pin using annotations.ports_top_git_hash rather than"
+                echo "::error::burning the 6h job limit rebuilding llvm19."
+                exit 1
+            fi
+
             set +e
             poudriere bulk -j j151 -p local -J 3 -f /tmp/pkglist
             BULK_EXIT=$?
