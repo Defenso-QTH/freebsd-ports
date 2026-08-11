@@ -1,0 +1,232 @@
+--- src/venus/vkr_device_memory.c.orig
++++ src/venus/vkr_device_memory.c
+@@ -6,6 +6,7 @@
+ #include "vkr_device_memory.h"
+ 
+ #include <math.h>
++#include <stdlib.h>
+ 
+ #include "venus-protocol/vn_protocol_renderer_transport.h"
+ 
+@@ -244,7 +245,65 @@
+ 
+ #endif /* ENABLE_GBM_ALLOCATION */
+ 
++#include <sys/mman.h>
++#include "util/anon_file.h"
++
++/*
++ * VK_EXT_external_memory_host backing for host-visible VkDeviceMemory.  Used on
++ * FreeBSD, where the VMM cannot mmap a dma_buf fd (drm-kmod dma_buf_mmap_fileops
++ * is a no-op) but can mmap an shm fd.  Allocate shm, import it as VkDeviceMemory
++ * via VkImportMemoryHostPointerInfoEXT, and export the shm fd (FD_SHM) so the
++ * VMM can map it -- the same shm-backed pattern as the Metal path.
++ */
++struct vkr_host_shm {
++   int shm_fd;
++   void *ptr;
++   uint64_t size;
++};
++
+ static void
++vkr_host_shm_free(struct vkr_host_shm *shm)
++{
++   if (!shm)
++      return;
++   if (shm->ptr && shm->ptr != MAP_FAILED)
++      munmap(shm->ptr, shm->size);
++   if (shm->shm_fd >= 0)
++      close(shm->shm_fd);
++   free(shm);
++}
++
++#ifdef __FreeBSD__
++static struct vkr_host_shm *
++vkr_host_shm_alloc(uint64_t size, uint64_t alignment)
++{
++   const uint64_t align = alignment ? alignment : 4096;
++   const uint64_t aligned = (size + align - 1) & ~(align - 1);
++
++   int fd = os_create_anonymous_file(aligned, "vkr-host-mem");
++   if (fd < 0)
++      return NULL;
++
++   void *ptr = mmap(NULL, aligned, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
++   if (ptr == MAP_FAILED) {
++      close(fd);
++      return NULL;
++   }
++
++   struct vkr_host_shm *shm = calloc(1, sizeof(*shm));
++   if (!shm) {
++      munmap(ptr, aligned);
++      close(fd);
++      return NULL;
++   }
++   shm->shm_fd = fd;
++   shm->ptr = ptr;
++   shm->size = aligned;
++   return shm;
++}
++#endif /* __FreeBSD__ */
++
++static void
+ vkr_dispatch_vkAllocateMemory(struct vn_dispatch_context *dispatch,
+                               struct vn_command_vkAllocateMemory *args)
+ {
+@@ -298,8 +357,12 @@
+    int udmabuf_fd = -1;
+    void *gbm_bo = NULL;
+    struct vkr_mtl_shm *mtl_shm = NULL;
++   struct vkr_host_shm *host_shm = NULL;
+    VkExportMemoryAllocateInfo local_export_info;
+    VkImportMemoryMetalHandleInfoEXT local_metal_import;
++#ifdef __FreeBSD__
++   VkImportMemoryHostPointerInfoEXT local_host_import;
++#endif
+ 
+    if ((property_flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) && !res_info) {
+       /* An implementation can support dma_buf import along with opaque fd export/import.
+@@ -312,6 +375,78 @@
+          !(export_info->handleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
+       const bool force_gbm_import = !!physical_dev->gbm_device;
+       const bool force_udmabuf_import = physical_dev->udmabuf_dev_fd >= 0;
++#ifdef __FreeBSD__
++      /* Host-pointer import (userptr) is non-functional on FreeBSD's
++       * amdgpu (drm-kmod), so this path is off unless VKR_HOST_IMPORT is
++       * set; by default fall through to the gbm/dma_buf export path,
++       * which the drm-kmod dma_buf-mmap fix makes VMM-mappable. */
++      if (physical_dev->EXT_external_memory_host &&
++          getenv("VKR_HOST_IMPORT") != NULL) {
++         /* dma_buf fds are unmappable by the VMM on FreeBSD; back host-visible
++          * memory with shm and import the host pointer instead. */
++         host_shm = vkr_host_shm_alloc(
++            alloc_info->allocationSize,
++            physical_dev->min_imported_host_pointer_alignment);
++         if (!host_shm) {
++            args->ret = VK_ERROR_OUT_OF_HOST_MEMORY;
++            return;
++         }
++
++         /* The imported host pointer is only compatible with a subset of
++          * memory types (RADV rejects the guest's coherent/WC type with
++          * VK_ERROR_INVALID_EXTERNAL_HANDLE and only accepts its GTT/cached
++          * type).  Query the compatible set and, if the requested type is not
++          * in it, substitute a compatible host-visible type. */
++         PFN_vkGetMemoryHostPointerPropertiesEXT get_hpp =
++            (PFN_vkGetMemoryHostPointerPropertiesEXT)
++               physical_dev->proc_table.GetDeviceProcAddr(
++                  dev->base.handle.device,
++                  "vkGetMemoryHostPointerPropertiesEXT");
++         if (get_hpp) {
++            VkMemoryHostPointerPropertiesEXT hpp = {
++               .sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT,
++            };
++            if (get_hpp(dev->base.handle.device,
++                        VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT,
++                        host_shm->ptr, &hpp) == VK_SUCCESS &&
++                !(hpp.memoryTypeBits & (1u << mem_type_index))) {
++               const VkPhysicalDeviceMemoryProperties *mp =
++                  &physical_dev->memory_properties;
++               int32_t sub = -1;
++               for (uint32_t i = 0; i < mp->memoryTypeCount; i++) {
++                  if (!(hpp.memoryTypeBits & (1u << i)))
++                     continue;
++                  if (!(mp->memoryTypes[i].propertyFlags &
++                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))
++                     continue;
++                  sub = (int32_t)i;
++                  if ((mp->memoryTypes[i].propertyFlags & property_flags) ==
++                      property_flags)
++                     break; /* prefer keeping the requested property flags */
++               }
++               if (sub >= 0) {
++                  vkr_log("host import: mem_type %u incompatible "
++                          "(compat=0x%x); using type %d", mem_type_index,
++                          hpp.memoryTypeBits, sub);
++                  alloc_info->memoryTypeIndex = (uint32_t)sub;
++               } else {
++                  vkr_log("host import: no host-visible type in compat=0x%x",
++                          hpp.memoryTypeBits);
++               }
++            }
++         }
++
++         local_host_import = (VkImportMemoryHostPointerInfoEXT){
++            .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT,
++            .pNext = alloc_info->pNext,
++            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT,
++            .pHostPointer = host_shm->ptr,
++         };
++         alloc_info->pNext = &local_host_import;
++         alloc_info->allocationSize = host_shm->size;
++         valid_fd_types = 1 << VIRGL_RESOURCE_FD_SHM;
++      } else
++#endif
+       if (!(force_gbm_import || force_udmabuf_import) &&
+           (physical_dev->is_dma_buf_fd_export_supported ||
+            (physical_dev->is_opaque_fd_export_supported && no_dma_buf_export))) {
+@@ -405,11 +540,16 @@
+ 
+    struct vkr_device_memory *mem = vkr_device_memory_create_and_add(ctx, args);
+    if (!mem) {
++      vkr_log("vkAllocateMemory failed: ret=%d mem_type=%u flags=0x%x "
++              "size=%" PRIu64 " host_shm=%d", (int)args->ret, mem_type_index,
++              property_flags, (uint64_t)alloc_info->allocationSize,
++              host_shm ? 1 : 0);
+       if (local_import_info.fd >= 0)
+          close(local_import_info.fd);
+       if (gbm_bo)
+          vkr_gbm_bo_destroy(gbm_bo);
+       vkr_mtl_shm_free(mtl_shm);
++      vkr_host_shm_free(host_shm);
+       return;
+    }
+ 
+@@ -420,6 +560,7 @@
+    mem->udmabuf_fd = udmabuf_fd;
+    mem->gbm_bo = gbm_bo;
+    mem->mtl_shm = mtl_shm;
++   mem->host_shm = host_shm;
+    mem->allocation_size = alloc_info->allocationSize;
+    mem->memory_type_index = mem_type_index;
+ }
+@@ -529,6 +670,7 @@
+ vkr_device_memory_release(struct vkr_device_memory *mem)
+ {
+    vkr_mtl_shm_free(mem->mtl_shm);
++   vkr_host_shm_free(mem->host_shm);
+    if (mem->gbm_bo)
+       vkr_gbm_bo_destroy(mem->gbm_bo);
+    if (mem->udmabuf_fd >= 0)
+@@ -543,13 +684,5 @@ vkr_device_memory_export_blob(struct vkr_device_memory *mem,
+ {
+    TRACE_FUNC();
+ 
+-   /* a memory can only be exported once; we don't want two resources to point
+-    * to the same storage.
+-    */
+-   if (mem->exported) {
+-      vkr_log("mem has been exported");
+-      return false;
+-   }
+-
+    uint32_t map_info = VIRGL_RENDERER_MAP_CACHE_NONE;
+    if (blob_flags & VIRGL_RENDERER_BLOB_FLAG_USE_MAPPABLE) {
+@@ -564,6 +706,16 @@
+       /* XXX guessed */
+       map_info = (coherent && cached) ? VIRGL_RENDERER_MAP_CACHE_CACHED
+                                       : VIRGL_RENDERER_MAP_CACHE_WC;
++   }
++
++   if (mem->host_shm && mem->host_shm->shm_fd >= 0) {
++      mem->exported = true;
++      *out_blob = (struct virgl_context_blob){
++         .type = VIRGL_RESOURCE_FD_SHM,
++         .u.fd = os_dupfd_cloexec(mem->host_shm->shm_fd),
++         .map_info = map_info,
++      };
++      return out_blob->u.fd >= 0;
+    }
+ 
+    if (mem->mtl_shm && mem->mtl_shm->shm_fd >= 0) {

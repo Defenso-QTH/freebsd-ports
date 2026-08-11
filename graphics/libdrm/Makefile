@@ -1,8 +1,8 @@
 PORTNAME=	libdrm
 PORTVERSION=	2.4.134
+PORTREVISION=	3
 PORTEPOCH=	1
 CATEGORIES=	graphics
-MASTER_SITES=	https://dri.freedesktop.org/libdrm/
 
 MAINTAINER=	x11@FreeBSD.org
 COMMENT=	Direct Rendering Manager library and headers
@@ -13,7 +13,15 @@ LICENSE=	MIT
 BUILD_DEPENDS=	rst2man:textproc/py-docutils
 LIB_DEPENDS=	libpciaccess.so:devel/libpciaccess
 
-USES=		gnome meson pkgconfig tar:xz
+USE_GITLAB=	yes
+GL_SITE=	https://gitlab.freedesktop.org
+GL_ACCOUNT=	quentin.thebault
+GL_COMMIT=	821631eb071a7fa5329d810484ae1b12e300c96a
+
+PATCH_SITES=	https://gitlab.freedesktop.org/${GL_ACCOUNT}/libdrm/-/commit/
+PATCHFILES+=	008d1733c23e.patch:-p1 # xf86drm: add sysctl fallback to drmParsePciDeviceInfo (MR#467)
+
+USES=		gnome meson pkgconfig
 USE_LDCONFIG=	yes
 MESON_ARGS=	-Dvalgrind=disabled
 

@@ -1,0 +1,45 @@
+DIAGNOSTIC: make a rejected command stream say where it was rejected.
+
+The generated protocol decoders call vn_cs_decoder_set_fatal() from 1358
+places and none of them log anything.  Most are a switch default over a
+pNext chain -- "unexpected struct" -- so a guest sending an extension the
+host's generated decoder predates fails with no explanation: the only
+output is the dispatcher's "<command> resulted in CS error", which names
+the command but not the reason.  That is what CK3 produces here on
+vkCreateGraphicsPipelines.
+
+Route every call through a wrapper that reports __func__ first.  Decoder
+names are generated from the structure being decoded, so "CS decode
+rejected in vn_decode_VkGraphicsPipelineCreateInfo_pnext_temp" identifies
+the exact chain that was refused.
+
+fprintf is used rather than vkr_log because this header only pulls in
+vkr_cs.h; the render server's stderr already reaches the VMM log.
+
+--- src/venus/venus-protocol/vn_protocol_renderer_cs.h.orig
++++ src/venus/venus-protocol/vn_protocol_renderer_cs.h
+@@ -9,6 +9,7 @@
+ #define VN_PROTOCOL_RENDERER_CS_H
+ 
+ #include <assert.h>
++#include <stdio.h>
+ 
+ /*
+  * These types/functions are expected
+@@ -63,11 +64,15 @@
+ }
+ 
+ static inline void
+-vn_cs_decoder_set_fatal(const struct vn_cs_decoder *dec)
++vn_cs_decoder_set_fatal_at(const struct vn_cs_decoder *dec, const char *fn)
+ {
+    const struct vkr_cs_decoder *d = (struct vkr_cs_decoder *)dec;
++   fprintf(stderr, "vkr: CS decode rejected in %s\n", fn);
+    vkr_cs_decoder_set_fatal(d);
+ }
++
++/* Every generated call site becomes self-identifying. */
++#define vn_cs_decoder_set_fatal(dec) vn_cs_decoder_set_fatal_at((dec), __func__)
+ 
+ static inline bool
+ vn_cs_decoder_get_fatal(const struct vn_cs_decoder *dec)

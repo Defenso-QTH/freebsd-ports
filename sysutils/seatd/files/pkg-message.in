@@ -10,7 +10,6 @@ By default libseat tries to find the first working backend. To override
 set LIBSEAT_BACKEND via environ(7). Available backends and try order:
 
 * "seatd" - seatd-launch(1) or seatd rc.d(8) service
-%%BASU%%* "consolekit2" - ck-launch-session(1) or pam_ck_connector(8)
 
 "seatd" backend requires membership in "video" group to be allowed to
 use setuid bit in seatd-launch(1) or connect to seatd(1) socket.
@@ -28,20 +27,6 @@ Alternatively, configure and run seatd(1) as system service
   # sysrc seatd_enable=YES
   # service seatd start
   $ sway
-
-%%BASU%%To use ConsoleKit2 run
-%%BASU%%
-%%BASU%%  # pkg install consolekit2 basu
-%%BASU%%  # sysrc -x seatd_enable
-%%BASU%%  # service seatd stop
-%%BASU%%  # sysrc dbus_enable=YES
-%%BASU%%  # service dbus start
-%%BASU%%  $ ck-launch-session sway
-%%BASU%%
-%%BASU%%where "ck-launch-session" can be dropped after
-%%BASU%%
-%%BASU%%  # echo "session optional pam_ck_connector.so" >>/etc/pam.d/system
-%%BASU%%  $ exit # log out to re-trigger PAM
 
 Known issues:
 - Garbage on console due to missing K_OFF, see
