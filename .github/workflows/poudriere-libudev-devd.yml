@@ -289,50 +289,48 @@ jobs:
             # libinput link against it, so the package must exist in the repo
             # either way; it just arrives prebuilt rather than compiled here.
             printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots020\nx11/virglrenderer\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\nsecurity/py-nitrokey\ncomms/py-pynitrokey\nsecurity/py-nethsm\n' > /tmp/pkglist
-            # Fail fast on a stale ports pin.
+            # Fail fast when the ports pin has drifted from pkg.freebsd.org.
             #
-            # If the tree's versions drift from what pkg.freebsd.org latest
-            # serves -- in EITHER direction, since latest lags main -- poudriere
-            # discards the pre-seeded binaries and rebuilds the closure.  llvm19
-            # alone is five hours against a six hour job limit, so the run dies
-            # with nothing to show and a misleading "cancelled".
+            # poudriere's own dry run is unavailable here: it requires
+            # ATOMIC_PACKAGE_REPOSITORY, which is deliberately off above so that
+            # PACKAGES stays at the path we pre-seed into.  Compare directly
+            # instead -- for the ports whose mismatch is catastrophic (llvm19
+            # and what it depends on), check that the version this tree would
+            # build is the version the pre-seed just fetched.  A mismatch means
+            # poudriere discards the binary and rebuilds the closure: llvm19
+            # alone is five hours against a six hour job limit, and the run dies
+            # with a conclusion of "cancelled" that looks like CI flakiness.
             #
-            # The queue size says this immediately.  A healthy run queues our
-            # overrides plus mesa (34 on 2026-08-11); a stale pin queued 258.
-            # A dry run costs about a minute and turns four wasted hours into a
-            # clear message.
+            # Costs seconds.  Three runs were lost to this before it existed.
             #
             # To re-pin: read annotations.ports_top_git_hash out of
             # packagesite.yaml and pin to the newest hash among the packages we
-            # consume -- not to main HEAD.
-            # The dry run must never be able to fail the build: it is a
-            # diagnostic.  Run it with errors tolerated, parse defensively, and
-            # if the queue cannot be determined just say so and carry on.
-            set +e
-            poudriere bulk -n -j j151 -p local -f /tmp/pkglist \
-                > /tmp/dryrun.log 2>&1
-            DRY_RC=$?
-            set -e
-
-            QUEUE=$(grep -oE 'Tobuild: *[0-9]+' /tmp/dryrun.log \
-                    | tail -1 | grep -oE '[0-9]+' || true)
-            if [ -z "${QUEUE}" ]; then
-                # Fall back to counting the ports the dry run listed.
-                QUEUE=$(grep -cE '^\[[0-9:]+\] +[a-z0-9_.+-]+/[a-z0-9_.+-]+' \
-                        /tmp/dryrun.log || true)
-            fi
-            echo "dry run: rc=${DRY_RC} queue=${QUEUE:-unknown}"
-            echo "--- last 40 lines of the dry run ---"
-            tail -40 /tmp/dryrun.log || true
-            echo "------------------------------------"
-
-            if [ -n "${QUEUE}" ] && [ "${QUEUE}" -gt 80 ] 2>/dev/null; then
-                echo "::error::${QUEUE} ports queued (expected well under 80)."
-                echo "::error::The ports pin has drifted from pkg.freebsd.org latest;"
-                echo "::error::re-pin using annotations.ports_top_git_hash rather than"
-                echo "::error::burning the 6h job limit rebuilding llvm19."
+            # consume -- NOT main HEAD, which is ahead of what latest serves.
+            DRIFT=""
+            for origin in lang/perl5.42 lang/python312 devel/llvm19 lang/rust \
+                          devel/cmake-core devel/libedit archivers/zstd; do
+                want=$(make -C /poudriere-ports/${origin} -V PKGNAME \
+                       PORTSDIR=/poudriere-ports 2>/dev/null | tail -1)
+                # Skip rather than guess if the lookup produced nothing usable.
+                case "${want}" in
+                    *-[0-9]*) ;;
+                    *) echo "pin check: skipped ${origin}"; continue ;;
+                esac
+                if [ ! -f "${PKGDIR}/${want}.pkg" ]; then
+                    have=$(ls ${PKGDIR}/${want%%-[0-9]*}-*.pkg 2>/dev/null | head -1)
+                    echo "::warning::${origin}: tree builds ${want}, pre-seed has $(basename "${have:-none}")"
+                    DRIFT="${DRIFT} ${origin}"
+                fi
+            done
+            if [ -n "${DRIFT}" ]; then
+                echo "::error::ports pin has drifted from pkg.freebsd.org latest:${DRIFT}"
+                echo "::error::poudriere will discard the pre-seeded binaries and"
+                echo "::error::rebuild the closure; llvm19 alone is ~5h against a"
+                echo "::error::6h job limit.  Re-pin using ports_top_git_hash from"
+                echo "::error::packagesite.yaml rather than letting this run burn."
                 exit 1
             fi
+            echo "pin check: tree matches the pre-seeded binaries"
 
             set +e
             poudriere bulk -j j151 -p local -J 3 -f /tmp/pkglist
