@@ -1,5 +1,5 @@
 PORTNAME=	bhyve-viewer
-DISTVERSION=	0.1.0.20260810
+DISTVERSION=	0.1.0.20260812
 CATEGORIES=	sysutils
 
 MAINTAINER=	quentin.thebault@defenso.fr
@@ -23,7 +23,7 @@ LICENSE=	BSD2CLAUSE
 # together and rerun `make makesum`.
 USE_GITHUB=	yes
 GH_ACCOUNT=	Defenso-QTH
-GH_TAGNAME=	c10f71656d08ad1a3bdddd0735a2c1a80d2cb6f9
+GH_TAGNAME=	03512f3ff6fb38ebedc70779bff4fd2c651ebfc3
 
 BUILD_DEPENDS=	wayland-protocols>=1.32:graphics/wayland-protocols
 LIB_DEPENDS=	libwayland-client.so:graphics/wayland
