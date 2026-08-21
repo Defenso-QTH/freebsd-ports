@@ -354,16 +354,27 @@ jobs:
             DRIFT=""
             for f in ${PKGDIR}/*.pkg; do
                 [ -f "${f}" ] || continue
+                # poudriere keeps both foo-1.2.pkg and foo-1.2~<hash>.pkg;
+                # checking both doubles the work and reports twice
+                case "${f}" in *'~'*) continue ;; esac
                 origin=$(pkg query -F "${f}" %o 2>/dev/null) || continue
                 # our own ports are supposed to differ from the binaries
                 grep -qx "${origin}" /tmp/pkglist && continue
                 [ -d "/poudriere-ports/${origin}" ] || continue
-                want=$(make -C /poudriere-ports/${origin} -V PKGNAME \
+                # Flavoured ports build a different version per flavour, and
+                # -V PKGNAME without one reports the default: devel/spirv-llvm-
+                # translator defaults to llvm23 (23.1.0) while what we consume
+                # is the llvm19 flavour (19.1.21), which the tree builds too.
+                # Comparing against the default flagged drift that did not exist.
+                flavor=$(pkg query -F "${f}" '%At %Av' 2>/dev/null \
+                         | awk '$1 == "flavor" { print $2 }')
+                want=$(make -C /poudriere-ports/${origin} \
+                       ${flavor:+FLAVOR=${flavor}} -V PKGNAME \
                        PORTSDIR=/poudriere-ports 2>/dev/null | tail -1)
                 have=$(pkg query -F "${f}" %n-%v 2>/dev/null)
                 case "${want}" in *-[0-9]*) ;; *) continue ;; esac
                 if [ "${want}" != "${have}" ]; then
-                    echo "::warning::${origin}: tree builds ${want}, pre-seed has ${have}"
+                    echo "::warning::${origin}${flavor:+@${flavor}}: tree builds ${want}, pre-seed has ${have}"
                     DRIFT="${DRIFT} ${origin}"
                 fi
             done
