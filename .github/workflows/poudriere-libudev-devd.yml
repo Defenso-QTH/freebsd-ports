@@ -210,6 +210,7 @@ jobs:
                 libxcb xcb-util xcb-util-wm xcb-util-image xcb-util-renderutil \
                 xcb-util-keysyms libX11 libXext libXdmcp libXau \
                 glib wlroots020 \
+                xorg-server \
                 meson ninja gmake pkgconf \
                 glslang spirv-tools spirv-headers evdev-proto hwdata scdoc \
                 py312-fido2 py312-hidapi py312-poetry py312-poetry-core py312-tqdm \
@@ -288,7 +289,16 @@ jobs:
             # build into it.  It is still fetched above -- wlroots020 and
             # libinput link against it, so the package must exist in the repo
             # either way; it just arrives prebuilt rather than compiled here.
-            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots020\nx11/virglrenderer\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\nsecurity/py-nitrokey\ncomms/py-pynitrokey\nsecurity/py-nethsm\n' > /tmp/pkglist
+            # x11-servers/xorg-server carries our fix to the FreeBSD-local
+            # bsd_init.c patch: a display manager that forks and runs the
+            # server on the VT it was launched from (Ly, lemurs) had the
+            # server demote itself out of the foreground process group, where
+            # the port's own tcsetattr() drew SIGTTOU and stopped it mid-init
+            # with the VT stuck in graphics mode.  The fix keeps the terminal
+            # in that case, as the Linux code does, and fails with a message
+            # rather than a dead VT when nothing can be done.  PORTREVISION is
+            # bumped, so the pre-seeded 21.1.24,1 binary is superseded.
+            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots020\nx11/virglrenderer\nx11-servers/xorg-server\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\nsecurity/py-nitrokey\ncomms/py-pynitrokey\nsecurity/py-nethsm\n' > /tmp/pkglist
             # Fail fast when the ports pin has drifted from pkg.freebsd.org.
             #
             # poudriere's own dry run is unavailable here: it requires
@@ -368,7 +378,7 @@ jobs:
             # pkg.freebsd.org configured.
             PKGDIR=/poudriere/data/packages/j151-local/All
             rm -rf repo && mkdir -p repo/All
-            for p in drm-612-kmod libudev-devd libdrm libdrm-devel libinput seatd wlroots020 virglrenderer vulkan-loader vulkan-headers libepoll-shim vm-bhyve bhyve-viewer py312-nitrokey py312-pynitrokey py312-nethsm; do
+            for p in drm-612-kmod libudev-devd libdrm libdrm-devel libinput seatd wlroots020 virglrenderer vulkan-loader vulkan-headers libepoll-shim vm-bhyve bhyve-viewer xorg-server py312-nitrokey py312-pynitrokey py312-nethsm; do
                 cp ${PKGDIR}/${p}-*.pkg repo/All/ 2>/dev/null || true
             done
             # The retired virglrenderer-mvisor fork lingers in poudriere's
