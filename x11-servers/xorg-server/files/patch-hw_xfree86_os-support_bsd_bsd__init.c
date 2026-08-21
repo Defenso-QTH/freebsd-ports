@@ -1,6 +1,14 @@
 --- hw/xfree86/os-support/bsd/bsd_init.c.orig	2026-07-08 01:35:09 UTC
 +++ hw/xfree86/os-support/bsd/bsd_init.c
-@@ -48,6 +48,8 @@ static int initialVT = -1;
+@@ -39,6 +39,7 @@
+ #include <sys/ioctl.h>
+ #include <stdlib.h>
+ #include <errno.h>
++#include <signal.h>
+ 
+ static Bool KeepTty = FALSE;
+ 
+@@ -48,6 +49,8 @@ static int initialVT = -1;
  #if defined (SYSCONS_SUPPORT) || defined (PCVT_SUPPORT)
  static int VTnum = -1;
  static int initialVT = -1;
@@ -20,16 +28,12 @@
 +         * instead. This stops Xorg in the middle of initialisation, without
 +         * graphics but with a K_RAW keyboard, leaving the user with no way out.
 +         *
-+         * A display manager running in the foreground that forks and runs the
-+         * Xorg server in a child is allowed - but only if we did not detach
-+         * from its process group.
-+         *
 +         * Keep the terminal in that case, as the Linux implementation does
 +         * (hw/xfree86/os-support/linux/lnx_init.c auto-enables KeepTty when
 +         * the server is started on the VT it was launched from).
 +         *
-+         * From a background process group there is nothing to be done: fail
-+         * explicitly to prevent wrecking the console.
++         * From a background process group there is nothing to be done: say so
++         * and exit while the console is still untouched.
 +         */
 +        if (!KeepTty && VTnum != -1) {
 +            int ttyfd = open("/dev/tty", O_RDONLY);
@@ -42,8 +46,24 @@
 +
 +                if (ctty_vt == VTnum) {
 +                    pid_t fg = tcgetpgrp(ttyfd);
++                    struct sigaction sa;
++                    sigset_t mask;
++                    Bool blocked = FALSE;
 +
-+                    if (fg != -1 && fg == getpgrp()) {
++                    /*
++                     * Being in a background process group is not by itself a
++                     * problem: tty(4) performs the operation anyway when the
++                     * caller ignores or blocks SIGTTOU, and that is how xinit
++                     * runs the server.
++                     */
++                    if (sigaction(SIGTTOU, NULL, &sa) == 0 &&
++                        sa.sa_handler == SIG_IGN)
++                        blocked = TRUE;
++                    if (!blocked && sigprocmask(SIG_BLOCK, NULL, &mask) == 0 &&
++                        sigismember(&mask, SIGTTOU))
++                        blocked = TRUE;
++
++                    if ((fg != -1 && fg == getpgrp()) || blocked) {
 +                        xf86Msg(X_PROBED, "controlling tty is VT number %d, "
 +                                "auto-enabling KeepTty\n", VTnum);
 +                        KeepTty = TRUE;
@@ -59,13 +79,12 @@
 +                } else
 +                    close(ttyfd);
 +            }
-+        }
-+#endif  /* VT_GETINDEX */
-+
+         }
++#endif                          /* VT_GETINDEX */
+ 
          if (!KeepTty) {
              /*
-              * detaching the controlling tty solves problems of kbd character
-@@ -253,6 +304,7 @@ xf86OpenConsole()
+@@ -253,6 +330,7 @@ xf86OpenConsole()
  #endif
   acquire_vt:
              if (!xf86Info.ShareVTs) {
@@ -73,7 +92,7 @@
                  /*
                   * now get the VT
                   */
-@@ -287,6 +339,26 @@ xf86OpenConsole()
+@@ -287,6 +365,26 @@ xf86OpenConsole()
                  if (ioctl(xf86Info.consoleFd, KDSETMODE, KD_GRAPHICS) < 0) {
                      FatalError("xf86OpenConsole: KDSETMODE KD_GRAPHICS failed");
                  }
@@ -100,7 +119,7 @@
              }
              else {              /* xf86Info.ShareVTs */
                  close(xf86Info.consoleFd);
-@@ -303,7 +375,7 @@ xf86OpenConsole()
+@@ -303,7 +401,7 @@ xf86OpenConsole()
      else {
          /* serverGeneration != 1 */
  #if defined (SYSCONS_SUPPORT) || defined (PCVT_SUPPORT)
@@ -109,7 +128,7 @@
              (xf86Info.consType == SYSCONS || xf86Info.consType == PCVT)) {
              if (ioctl(xf86Info.consoleFd, VT_ACTIVATE, xf86Info.vtno) != 0) {
                  xf86Msg(X_WARNING, "xf86OpenConsole: VT_ACTIVATE failed\n");
-@@ -594,6 +666,8 @@ xf86CloseConsole()
+@@ -594,6 +692,8 @@ xf86CloseConsole()
      case SYSCONS:
      case PCVT:
          ioctl(xf86Info.consoleFd, KDSETMODE, KD_TEXT);  /* Back to text mode */
@@ -118,7 +137,7 @@
          if (ioctl(xf86Info.consoleFd, VT_GETMODE, &VT) != -1) {
              VT.mode = VT_AUTO;
              ioctl(xf86Info.consoleFd, VT_SETMODE, &VT); /* dflt vt handling */
-@@ -604,7 +678,7 @@ xf86CloseConsole()
+@@ -604,7 +704,7 @@ xf86CloseConsole()
                             strerror(errno));
          }
  #endif
