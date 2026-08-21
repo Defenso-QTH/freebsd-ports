@@ -1,6 +1,9 @@
 PORTNAME=	libdrm
 PORTVERSION=	2.4.134
-PORTREVISION=	3
+# No PORTREVISION on purpose: latest's mesa records its libdrm dependency
+# as exactly 2.4.134,1, and a revision here makes poudriere discard that
+# mesa and rebuild it, which is most of the CI run.  The pre-seeded
+# (unpatched) libdrm is deleted in the workflow so this one is still built.
 PORTEPOCH=	1
 CATEGORIES=	graphics
 
