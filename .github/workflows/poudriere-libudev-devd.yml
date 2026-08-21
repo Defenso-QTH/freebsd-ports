@@ -199,9 +199,11 @@ jobs:
             # packagesite AND our (latest-resynced) ports tree: with both on
             # latest the versions match by construction, so poudrière accepts
             # the binaries instead of rebuilding.  Graphics ports (mesa/...) are
-            # intentionally NOT here: our custom libdrm-2.4.134 makes poudrière
-            # delete pkg.freebsd.org's mesa (built against libdrm-2.4.133) and
-            # rebuild it regardless.
+            # intentionally NOT here.  NOTE (2026-08-21): latest's mesa 26.1.7
+            # records its libdrm dependency as exactly 2.4.134,1, so our port
+            # now builds that same version -- no PORTREVISION -- and the
+            # pre-seeded mesa should survive.  The pre-seeded libdrm is deleted
+            # below so ours is still the one built.
             pkg fetch -y -d \
                 pkg python311 python312 cmake-core llvm19 mesa-dri mesa-libs rust \
                 wayland wayland-protocols libglvnd pixman libxkbcommon \
@@ -283,6 +285,16 @@ jobs:
             find /var/cache/pkg -name '*.pkg' \
                 -exec cp -f {} ${PKGDIR}/ \; 2>/dev/null || true
 
+            # graphics/libdrm now builds the same version string as upstream
+            # (2.4.134,1) so that the pre-seeded mesa, whose recorded dependency
+            # is exactly libdrm-2.4.134,1, is not discarded and rebuilt -- that
+            # rebuild is most of the run.  The cost is that the pre-seeded
+            # *unpatched* libdrm satisfies poudriere too, and it would skip
+            # building ours: delete it so the tree's patched one is built.
+            # Without this the repo silently ships upstream libdrm, losing the
+            # drmParsePciDeviceInfo / drmGetMinorType sysctl fallbacks.
+            rm -f ${PKGDIR}/libdrm-*.pkg
+
             # devel/libudev-devd is no longer listed: it is identical to
             # upstream since v0.7.0 landed, so the pre-seeded binary from
             # pkg.freebsd.org version-matches and there is nothing of ours to
@@ -350,7 +362,7 @@ jobs:
             echo "pin check: tree matches the pre-seeded binaries"
 
             set +e
-            poudriere bulk -j j151 -p local -J 3 -f /tmp/pkglist
+            poudriere bulk -j j151 -p local -J 2 -f /tmp/pkglist
             BULK_EXIT=$?
             set -e
 
