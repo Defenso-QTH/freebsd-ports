@@ -337,13 +337,22 @@ jobs:
             # packagesite.yaml and pin to the newest hash among the packages we
             # consume -- NOT main HEAD, which is ahead of what latest serves.
             #
-            # Current pin: this branch is rebased onto upstream 0c6548094
-            # (2026-08-17), which is where 17685 of the repo's packages were
-            # built -- pin to the dominant hash, not merely the newest one any
-            # single package we consume reports.  At that commit the seven origins below build exactly what
-            # latest serves: perl5 5.42.3, python312 3.12.14, llvm19 19.1.7_4,
-            # rust 1.97.1, cmake-core 3.31.12_3, libedit 3.1.20260512,1, zstd
-            # 1.5.7_2.  latest moves every few days; expect to redo this.
+            # Current pin: this branch is rebased onto upstream 6255cb20bc
+            # (2026-08-25), which is where 15250 of the repo's 38169 packages
+            # were built -- pin to the dominant hash, not merely the newest one
+            # any single package we consume reports.  At that commit the seven
+            # origins below build exactly what latest serves: perl5 5.42.3,
+            # python312 3.12.14, llvm19 19.1.7_4, rust 1.97.1, cmake-core
+            # 3.31.12_3, libedit 3.1.20260512,1, zstd 1.5.7_2.
+            #
+            # The previous pin, 0c6548094, was dominant at 17685 packages when
+            # it was chosen and had fallen to 3898 by 2026-08-25: latest is
+            # rebuilt forward continuously, so a pin decays rather than
+            # breaking outright.  All fourteen origins the guard named as
+            # drifted then -- ca_root_nss, expat2, libpsl, mesa-dri, mesa-libs,
+            # five py- ports, py-pygments, vulkan-headers, vulkan-loader,
+            # wayland -- report 6255cb20bc.  latest moves every few days;
+            # expect to redo this.
             # Checking a hand-picked list is what let this through: on
             # 2026-08-21 devel/libffi drifted (fetched 3.8.0, tree 3.7.1), which
             # is upstream of glib and python312 and so of llvm19, mesa and gtk3
