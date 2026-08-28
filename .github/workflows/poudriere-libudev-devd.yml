@@ -180,8 +180,36 @@ jobs:
             # pkg.freebsd.org then match exactly and are not discarded.
             rm -rf /poudriere-ports/.git
 
-            # build jail (downloads 15.1-RELEASE base) + register the ports tree
-            poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
+            # Build jail from OUR pkgbase repo, not 15.1-RELEASE.
+            #
+            # USES=kmod bakes ${OSVERSION} into the package version, so a jail
+            # built from 15.1-RELEASE produces drm-612-kmod-6.12.85.1501000_4
+            # while the host runs a kernel from our own src branch at 1501002.
+            # Those modules are compiled against different kernel headers than
+            # the running kernel, which is the mismatch that had to be fixed by
+            # rebuilding from source by hand.
+            #
+            # The freebsd-src "Cross-build amd64 pkgbase" workflow already
+            # publishes a full pkgbase set to GitHub Pages, including
+            # FreeBSD-src-sys.  That matters: poudriere's pkgbase installer
+            # explicitly installs FreeBSD-src-sys, which is what USES=kmod
+            # needs for SRC_BASE -- poudriere-jail(8) warns that kernel modules
+            # cannot be built from a pkgbase jail, but that is about the
+            # official repo, which ships no source packages.  Ours does.
+            #
+            # -v is the ABI major version here, not a release name: the repo
+            # URL is assembled as ${-U}/FreeBSD:${-v}:${arch}/${repo}.
+            #
+            # This couples the two repositories -- the src workflow must have
+            # deployed before this runs, or the jail is built from a stale
+            # base.  The OSVERSION is echoed below so every run records which
+            # kernel its kmods were built against.
+            poudriere jail -c -j j151 -v 15 -a amd64 \
+                -m pkgbase=latest \
+                -U https://defenso-qth.github.io/freebsd-src
+            poudriere jail -l
+            echo "jail OSVERSION: $(awk '/^#define[[:space:]]+__FreeBSD_version/ {print $3}' \
+                /poudriere/jails/j151/usr/include/sys/param.h 2>/dev/null || echo unknown)"
             poudriere ports -c -p local -m null -M /poudriere-ports
 
             # Pre-seed heavy binary packages from pkg.freebsd.org.  Because .git
