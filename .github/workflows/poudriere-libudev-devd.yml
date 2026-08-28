@@ -318,7 +318,24 @@ jobs:
             # in that case, as the Linux code does, and fails with a message
             # rather than a dead VT when nothing can be done.  PORTREVISION is
             # bumped, so the pre-seeded 21.1.24,1 binary is superseded.
-            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots020\nx11/virglrenderer\nx11-servers/xorg-server\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\n' > /tmp/pkglist
+            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots020\nx11/virglrenderer\nx11-servers/xorg-server\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\ngraphics/gpu-firmware-amd-kmod@gc_11_0_1\ngraphics/gpu-firmware-amd-kmod@psp_13_0_4\ngraphics/gpu-firmware-amd-kmod@sdma_6_0_1\ngraphics/gpu-firmware-amd-kmod@vcn_4_0_2\ngraphics/gpu-firmware-amd-kmod@dcn_3_1_4\n' > /tmp/pkglist
+            # gpu-firmware-amd-kmod is flavoured, one package per GPU IP
+            # block, so only the five Phoenix (gfx1103, Radeon 780M, device
+            # 0x15bf) blocks are built rather than the ~130 in FLAVORS:
+            # gc_11_0_1 (graphics, mes), sdma_6_0_1 and dcn_3_1_4 are declared
+            # in drm-kmod's MODULE_FIRMWARE for this part; psp_13_0_4 and
+            # vcn_4_0_2 follow from Phoenix's IP versions -- amdgpu builds
+            # those names at runtime from IP discovery rather than declaring
+            # them, so they do not appear in a MODULE_FIRMWARE grep.
+            #
+            # USES=kmod appends .${OSVERSION} to the package version
+            # (Mk/Uses/kmod.mk sets _OS_SUFX, bsd.port.mk uses it in
+            # PKGVERSION), which is why the drm package is
+            # drm-612-kmod-6.12.85.1501000_4 and not ...-6.12.85_4.  These are
+            # therefore built for the jail's kernel version, 15.1-RELEASE =
+            # 1501000, and a host running a different kernel wants a jail to
+            # match.
+
             # Fail fast when the ports pin has drifted from pkg.freebsd.org.
             #
             # poudriere's own dry run is unavailable here: it requires
@@ -441,7 +458,7 @@ jobs:
             # pkg.freebsd.org configured.
             PKGDIR=/poudriere/data/packages/j151-local/All
             rm -rf repo && mkdir -p repo/All
-            for p in drm-612-kmod libudev-devd libdrm libdrm-devel libinput seatd wlroots020 virglrenderer vulkan-loader vulkan-headers libepoll-shim vm-bhyve bhyve-viewer xorg-server; do
+            for p in drm-612-kmod libudev-devd libdrm libdrm-devel libinput seatd wlroots020 virglrenderer vulkan-loader vulkan-headers libepoll-shim vm-bhyve bhyve-viewer xorg-server gpu-firmware-amd-kmod; do
                 cp ${PKGDIR}/${p}-*.pkg repo/All/ 2>/dev/null || true
             done
             # The retired virglrenderer-mvisor fork lingers in poudriere's
