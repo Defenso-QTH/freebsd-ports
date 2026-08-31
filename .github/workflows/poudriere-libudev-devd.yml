@@ -468,6 +468,41 @@ jobs:
             # resolve to the stale fork on the host.  Drop it so the published
             # repo offers only the stock virglrenderer.
             rm -f repo/All/virglrenderer-mvisor-*.pkg
+
+            # Refuse to publish a repo that is missing packages we build here.
+            #
+            # The steps that upload to Pages carry no if() condition, so they
+            # run only when this one succeeds -- which makes the exit status
+            # below the only thing standing between a bad build and the live
+            # repo.  The errors/ directory alone is not enough to decide: it
+            # holds a log per *port* that failed, so it stays empty when
+            # poudriere dies before attempting any port at all, and the run
+            # then exits 0 and deploys.
+            #
+            # That is exactly what run 171 did.  A jail change left poudriere
+            # unable to read the jail's OSVERSION, bulk aborted with status 2
+            # having built nothing, errors/ was empty, and the export copied
+            # the pre-seeded upstream binaries sitting in PKGDIR over a good
+            # repo: xorg-server fell back to 21.1.24,1 without our VT fix and
+            # every kmod disappeared, while the run reported success.
+            #
+            # Check for what we know we build instead.  A missing package
+            # means the repo would be worse than the one already published, so
+            # leave that one alone.
+            MISSING=""
+            for p in drm-612-kmod libdrm virglrenderer xorg-server \
+                     vm-bhyve bhyve-viewer gpu-firmware-amd-kmod-gc-11-0-1; do
+                ls repo/All/${p}-[0-9]*.pkg >/dev/null 2>&1 || \
+                    MISSING="${MISSING} ${p}"
+            done
+            if [ -n "${MISSING}" ]; then
+                echo "::error::not publishing: built repo is missing${MISSING}"
+                echo "::error::poudriere exited ${BULK_EXIT}; the previously"
+                echo "::error::published repo is left in place."
+                ls -lh repo/All/ 2>/dev/null || true
+                exit 1
+            fi
+
             pkg repo repo /usr/local/etc/poudriere-repo.key
             ls -lh repo/All/
             echo "Repo size: $(du -sh repo | cut -f1)"
