@@ -354,23 +354,22 @@ jobs:
             # packagesite.yaml and pin to the newest hash among the packages we
             # consume -- NOT main HEAD, which is ahead of what latest serves.
             #
-            # Current pin: this branch is rebased onto upstream 87d2ba732e
-            # (2026-08-25), which is where 13004 of the repo's 38189 packages
-            # were built -- pin to the dominant hash, not merely the newest one
-            # any single package we consume reports.  At that commit the heavy
-            # origins build exactly what latest serves: llvm19 19.1.7_4, rust
+            # Current pin: this branch is rebased onto upstream e66ef70ebb
+            # (2026-08-27).  Unusually, latest was rebuilt wholesale: all
+            # 38169 packages report that one hash, so there is no dominant-vs-
+            # newest judgement to make this time.  llvm19 19.1.7_4, rust
             # 1.97.1, cmake-core 3.31.12_3, libedit 3.1.20260512,1, zstd
-            # 1.5.7_2, and the ports that had drifted -- mesa-dri 26.2.1_1,
-            # libpsl 0.23.3, libnghttp2 1.70.0 -- all match too.
+            # 1.5.7_2, mesa-dri 26.2.1_1 and the ports that had drifted --
+            # py-maturin 1.15.0, py-virtualenv 21.7.5 -- all match.
             #
-            # A pin decays rather than breaking: latest is rebuilt forward
-            # continuously, so the share of packages built at any given commit
-            # falls over time.  6255cb20bc was dominant at 15250 packages on
-            # 2026-08-25 and was down to 7134 three days later, which is when
-            # run 169 failed.  Expect to redo this roughly weekly; the guard
-            # below catches it in two minutes rather than burning a six hour
-            # job, and dominant_hash.py in the scratch tree computes the next
-            # pin straight from packagesite.yaml.
+            # A pin decays rather than breaking, because latest is rebuilt
+            # forward continuously.  Observed lifetimes: 0c6548094 dominant at
+            # 17685 packages then 3898 four days later; 6255cb20bc 15250 then
+            # 7134 in three days; 87d2ba732e lasted three days.  Budget for a
+            # re-pin every few days, not weekly.  The guard below catches it in
+            # about four minutes rather than burning a six hour job, and
+            # dominant_hash.py in the scratch tree computes the next pin
+            # straight from packagesite.yaml.
             #
             # Checking a hand-picked list is what let this through: on
             # 2026-08-21 devel/libffi drifted (fetched 3.8.0, tree 3.7.1), which
