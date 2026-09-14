@@ -95,6 +95,16 @@ jobs:
       # comments cost nothing against that budget.
       #
       # == the build list ==
+      # sysutils/seatd was dropped 2026-09-14.  It was here only to compile a
+      # Defenso socket path into seatd/libseat (SEATD_DEFAULTPATH), because a
+      # jailed compositor could not reach the host's /var/run/seatd.sock
+      # without mounting the whole directory.  nullfs can mount the single
+      # socket since freebsd-src 2c68ad49f13, so the stock path is enough and
+      # the port is back to upstream's.  Upstream's seatd-0.9.3 plus its two
+      # sddm PATCHFILES was verified to produce a tree byte-identical to the
+      # 4bcdc819 snapshot we had pinned, so nothing else was lost either.
+      # seatd is still fetched (wlroots020 and libinput link against libseat)
+      # and still published, like libudev-devd -- it just arrives prebuilt.
       # devel/libudev-devd is no longer listed: it is identical to
       # upstream since v0.7.0 landed, so the pre-seeded binary from
       # pkg.freebsd.org version-matches and there is nothing of ours to
@@ -253,12 +263,6 @@ jobs:
             } > /usr/local/etc/poudriere.conf
             mkdir -p /poudriere/data/packages /poudriere/distfiles
 
-            # build seatd with a Defenso-specific compiled-in socket path
-            # (sysutils/seatd reads SEATD_SOCKET -> meson -Ddefaultpath)
-            mkdir -p /usr/local/etc/poudriere.d
-            echo 'SEATD_SOCKET=/var/run/seatd/seatd.sock' \
-                > /usr/local/etc/poudriere.d/make.conf
-
             # populate poudriere dirs from cache (no-op on first run)
             mkdir -p poudriere-cache/distfiles
             cp -a poudriere-cache/distfiles/. /poudriere/distfiles/ || true
@@ -397,7 +401,7 @@ jobs:
             rm -f ${PKGDIR}/libdrm-*.pkg
 
             # What this list contains and why: see the notes above the step.
-            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots020\nx11/virglrenderer\nx11-servers/xorg-server\nnet/freerdp3\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\ngraphics/gpu-firmware-amd-kmod@gc_11_0_1\ngraphics/gpu-firmware-amd-kmod@psp_13_0_4\ngraphics/gpu-firmware-amd-kmod@sdma_6_0_1\ngraphics/gpu-firmware-amd-kmod@vcn_4_0_2\ngraphics/gpu-firmware-amd-kmod@dcn_3_1_4\n' > /tmp/pkglist
+            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nx11-toolkits/wlroots020\nx11/virglrenderer\nx11-servers/xorg-server\nnet/freerdp3\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\ngraphics/gpu-firmware-amd-kmod@gc_11_0_1\ngraphics/gpu-firmware-amd-kmod@psp_13_0_4\ngraphics/gpu-firmware-amd-kmod@sdma_6_0_1\ngraphics/gpu-firmware-amd-kmod@vcn_4_0_2\ngraphics/gpu-firmware-amd-kmod@dcn_3_1_4\n' > /tmp/pkglist
             # gpu-firmware-amd-kmod is flavoured, one package per GPU IP
             # block, so only the five Phoenix (gfx1103, Radeon 780M, device
             # 0x15bf) blocks are built rather than the ~130 in FLAVORS:
