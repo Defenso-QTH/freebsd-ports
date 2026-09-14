@@ -354,13 +354,20 @@ jobs:
             # packagesite.yaml and pin to the newest hash among the packages we
             # consume -- NOT main HEAD, which is ahead of what latest serves.
             #
-            # Current pin: this branch is rebased onto upstream e66ef70ebb
-            # (2026-08-27).  Unusually, latest was rebuilt wholesale: all
-            # 38169 packages report that one hash, so there is no dominant-vs-
-            # newest judgement to make this time.  llvm19 19.1.7_4, rust
-            # 1.97.1, cmake-core 3.31.12_3, libedit 3.1.20260512,1, zstd
-            # 1.5.7_2, mesa-dri 26.2.1_1 and the ports that had drifted --
-            # py-maturin 1.15.0, py-virtualenv 21.7.5 -- all match.
+            # Current pin: this branch is rebased onto upstream 08bf8552608d
+            # (2026-09-13).  e66ef70ebb is still the single most common hash
+            # in latest (12281 of 38033 packages), but "dominant" is the wrong
+            # test -- what matters is the NEWEST hash among the packages we
+            # consume, because a binary built from a newer tree than ours is
+            # what makes poudriere discard it and rebuild.  The consumed set
+            # grows to 247 packages with net/freerdp3 in the next commit, and
+            # with it the newest hash: freerdp3, gtk4 and libsoup3 come from
+            # 08bf8552608d (2026-09-13), ffmpeg from e26b1e4bc8ec (09-10),
+            # sdl2/sdl3/libva from 5c01d7a330c3 (09-08), dav1d from
+            # 2311e6d81e23 (09-05).  On the old pin the tree built ffmpeg
+            # 8.1.2_3,1 against latest's 9.0.1,1 and dav1d 1.5.3_1 against
+            # 1.5.4, either of which would have pulled ffmpeg -- and through
+            # it a large part of the closure -- into the build from source.
             #
             # A pin decays rather than breaking, because latest is rebuilt
             # forward continuously.  Observed lifetimes: 0c6548094 dominant at
