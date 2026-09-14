@@ -88,6 +88,98 @@ jobs:
           restore-keys: |
             poudriere-${{ runner.os }}-15.1-
 
+      # ---------------------------------------------------------------
+      # Notes for the build step below.  They live out here rather than
+      # inside its run: script because GitHub caps an action input at
+      # 21000 characters and the script was within 400 of it; YAML
+      # comments cost nothing against that budget.
+      #
+      # == the build list ==
+      # devel/libudev-devd is no longer listed: it is identical to
+      # upstream since v0.7.0 landed, so the pre-seeded binary from
+      # pkg.freebsd.org version-matches and there is nothing of ours to
+      # build into it.  It is still fetched above -- wlroots020 and
+      # libinput link against it, so the package must exist in the repo
+      # either way; it just arrives prebuilt rather than compiled here.
+      # x11-servers/xorg-server carries our fix to the FreeBSD-local
+      # bsd_init.c patch: a display manager that forks and runs the
+      # server on the VT it was launched from (Ly, lemurs) had the
+      # server demote itself out of the foreground process group, where
+      # the port's own tcsetattr() drew SIGTTOU and stopped it mid-init
+      # with the VT stuck in graphics mode.  The fix keeps the terminal
+      # in that case, as the Linux code does, and fails with a message
+      # rather than a dead VT when nothing can be done.  PORTREVISION is
+      # bumped, so the pre-seeded 21.1.24,1 binary is superseded.
+      #
+      # net/freerdp3 carries FreeRDP PR 13351 (merged upstream
+      # 2026-09-07, after 3.31.1 shipped).  3.31.1 maps
+      # GFX_PIXEL_FORMAT_XRGB_8888 to PIXEL_FORMAT_BGRA32
+      # unconditionally, so the alpha byte xrdp leaves undefined is
+      # honoured and the session renders wrong; upstream made that
+      # mapping conditional on RemoteApp mode and kept BGRX32
+      # otherwise.  3.31.0 and earlier were not affected -- the
+      # regression is specific to 3.31.1, which is what latest serves.
+      # The patch is the merged upstream commits verbatim, so it can be
+      # dropped as soon as a release contains them.
+      #
+      # PORTREVISION=1 is what makes this work without pkg lock or
+      # "pkg install -f": 3.31.1_1 sorts above pkg.freebsd.org's
+      # 3.31.1, and below the next release (3.31.2, 3.32.0, ...), so
+      # the official package takes over again on its own once FreeRDP
+      # ships the fix.  The only tie is upstream bumping this port to
+      # exactly _1; _2 or a new DISTVERSION both win over us.
+      #
+      # == the ports pin ==
+      # Fail fast when the ports pin has drifted from pkg.freebsd.org.
+      #
+      # poudriere's own dry run is unavailable here: it requires
+      # ATOMIC_PACKAGE_REPOSITORY, which is deliberately off above so that
+      # PACKAGES stays at the path we pre-seed into.  Compare directly
+      # instead -- for the ports whose mismatch is catastrophic (llvm19
+      # and what it depends on), check that the version this tree would
+      # build is the version the pre-seed just fetched.  A mismatch means
+      # poudriere discards the binary and rebuilds the closure: llvm19
+      # alone is five hours against a six hour job limit, and the run dies
+      # with a conclusion of "cancelled" that looks like CI flakiness.
+      #
+      # Costs seconds.  Three runs were lost to this before it existed.
+      #
+      # To re-pin: read annotations.ports_top_git_hash out of
+      # packagesite.yaml and pin to the newest hash among the packages we
+      # consume -- NOT main HEAD, which is ahead of what latest serves.
+      #
+      # Current pin: this branch is rebased onto upstream 08bf8552608d
+      # (2026-09-13).  e66ef70ebb is still the single most common hash
+      # in latest (12281 of 38033 packages), but "dominant" is the wrong
+      # test -- what matters is the NEWEST hash among the packages we
+      # consume, because a binary built from a newer tree than ours is
+      # what makes poudriere discard it and rebuild.  The consumed set
+      # grows to 247 packages with net/freerdp3 in the next commit, and
+      # with it the newest hash: freerdp3, gtk4 and libsoup3 come from
+      # 08bf8552608d (2026-09-13), ffmpeg from e26b1e4bc8ec (09-10),
+      # sdl2/sdl3/libva from 5c01d7a330c3 (09-08), dav1d from
+      # 2311e6d81e23 (09-05).  On the old pin the tree built ffmpeg
+      # 8.1.2_3,1 against latest's 9.0.1,1 and dav1d 1.5.3_1 against
+      # 1.5.4, either of which would have pulled ffmpeg -- and through
+      # it a large part of the closure -- into the build from source.
+      #
+      # A pin decays rather than breaking, because latest is rebuilt
+      # forward continuously.  Observed lifetimes: 0c6548094 dominant at
+      # 17685 packages then 3898 four days later; 6255cb20bc 15250 then
+      # 7134 in three days; 87d2ba732e lasted three days.  Budget for a
+      # re-pin every few days, not weekly.  The guard below catches it in
+      # about four minutes rather than burning a six hour job, and
+      # dominant_hash.py in the scratch tree computes the next pin
+      # straight from packagesite.yaml.
+      #
+      # Checking a hand-picked list is what let this through: on
+      # 2026-08-21 devel/libffi drifted (fetched 3.8.0, tree 3.7.1), which
+      # is upstream of glib and python312 and so of llvm19, mesa and gtk3
+      # -- poudriere deleted them all and queued 257 packages, and the VM
+      # stopped answering an hour into llvm19.  The list said the pin was
+      # fine because libffi was not on it.  Check every pre-seeded package
+      # instead, skipping the ports we deliberately build ourselves.
+      # ---------------------------------------------------------------
       - name: poudriere bulk build (FreeBSD VM)
         uses: vmactions/freebsd-vm@v1
         with:
@@ -304,39 +396,7 @@ jobs:
             # drmParsePciDeviceInfo / drmGetMinorType sysctl fallbacks.
             rm -f ${PKGDIR}/libdrm-*.pkg
 
-            # devel/libudev-devd is no longer listed: it is identical to
-            # upstream since v0.7.0 landed, so the pre-seeded binary from
-            # pkg.freebsd.org version-matches and there is nothing of ours to
-            # build into it.  It is still fetched above -- wlroots020 and
-            # libinput link against it, so the package must exist in the repo
-            # either way; it just arrives prebuilt rather than compiled here.
-            # x11-servers/xorg-server carries our fix to the FreeBSD-local
-            # bsd_init.c patch: a display manager that forks and runs the
-            # server on the VT it was launched from (Ly, lemurs) had the
-            # server demote itself out of the foreground process group, where
-            # the port's own tcsetattr() drew SIGTTOU and stopped it mid-init
-            # with the VT stuck in graphics mode.  The fix keeps the terminal
-            # in that case, as the Linux code does, and fails with a message
-            # rather than a dead VT when nothing can be done.  PORTREVISION is
-            # bumped, so the pre-seeded 21.1.24,1 binary is superseded.
-            #
-            # net/freerdp3 carries FreeRDP PR 13351 (merged upstream
-            # 2026-09-07, after 3.31.1 shipped).  3.31.1 maps
-            # GFX_PIXEL_FORMAT_XRGB_8888 to PIXEL_FORMAT_BGRA32
-            # unconditionally, so the alpha byte xrdp leaves undefined is
-            # honoured and the session renders wrong; upstream made that
-            # mapping conditional on RemoteApp mode and kept BGRX32
-            # otherwise.  3.31.0 and earlier were not affected -- the
-            # regression is specific to 3.31.1, which is what latest serves.
-            # The patch is the merged upstream commits verbatim, so it can be
-            # dropped as soon as a release contains them.
-            #
-            # PORTREVISION=1 is what makes this work without pkg lock or
-            # "pkg install -f": 3.31.1_1 sorts above pkg.freebsd.org's
-            # 3.31.1, and below the next release (3.31.2, 3.32.0, ...), so
-            # the official package takes over again on its own once FreeRDP
-            # ships the fix.  The only tie is upstream bumping this port to
-            # exactly _1; _2 or a new DISTVERSION both win over us.
+            # What this list contains and why: see the notes above the step.
             printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nsysutils/seatd\nx11-toolkits/wlroots020\nx11/virglrenderer\nx11-servers/xorg-server\nnet/freerdp3\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\ngraphics/gpu-firmware-amd-kmod@gc_11_0_1\ngraphics/gpu-firmware-amd-kmod@psp_13_0_4\ngraphics/gpu-firmware-amd-kmod@sdma_6_0_1\ngraphics/gpu-firmware-amd-kmod@vcn_4_0_2\ngraphics/gpu-firmware-amd-kmod@dcn_3_1_4\n' > /tmp/pkglist
             # gpu-firmware-amd-kmod is flavoured, one package per GPU IP
             # block, so only the five Phoenix (gfx1103, Radeon 780M, device
@@ -355,55 +415,8 @@ jobs:
             # 1501000, and a host running a different kernel wants a jail to
             # match.
 
-            # Fail fast when the ports pin has drifted from pkg.freebsd.org.
-            #
-            # poudriere's own dry run is unavailable here: it requires
-            # ATOMIC_PACKAGE_REPOSITORY, which is deliberately off above so that
-            # PACKAGES stays at the path we pre-seed into.  Compare directly
-            # instead -- for the ports whose mismatch is catastrophic (llvm19
-            # and what it depends on), check that the version this tree would
-            # build is the version the pre-seed just fetched.  A mismatch means
-            # poudriere discards the binary and rebuilds the closure: llvm19
-            # alone is five hours against a six hour job limit, and the run dies
-            # with a conclusion of "cancelled" that looks like CI flakiness.
-            #
-            # Costs seconds.  Three runs were lost to this before it existed.
-            #
-            # To re-pin: read annotations.ports_top_git_hash out of
-            # packagesite.yaml and pin to the newest hash among the packages we
-            # consume -- NOT main HEAD, which is ahead of what latest serves.
-            #
-            # Current pin: this branch is rebased onto upstream 08bf8552608d
-            # (2026-09-13).  e66ef70ebb is still the single most common hash
-            # in latest (12281 of 38033 packages), but "dominant" is the wrong
-            # test -- what matters is the NEWEST hash among the packages we
-            # consume, because a binary built from a newer tree than ours is
-            # what makes poudriere discard it and rebuild.  The consumed set
-            # grows to 247 packages with net/freerdp3 in the next commit, and
-            # with it the newest hash: freerdp3, gtk4 and libsoup3 come from
-            # 08bf8552608d (2026-09-13), ffmpeg from e26b1e4bc8ec (09-10),
-            # sdl2/sdl3/libva from 5c01d7a330c3 (09-08), dav1d from
-            # 2311e6d81e23 (09-05).  On the old pin the tree built ffmpeg
-            # 8.1.2_3,1 against latest's 9.0.1,1 and dav1d 1.5.3_1 against
-            # 1.5.4, either of which would have pulled ffmpeg -- and through
-            # it a large part of the closure -- into the build from source.
-            #
-            # A pin decays rather than breaking, because latest is rebuilt
-            # forward continuously.  Observed lifetimes: 0c6548094 dominant at
-            # 17685 packages then 3898 four days later; 6255cb20bc 15250 then
-            # 7134 in three days; 87d2ba732e lasted three days.  Budget for a
-            # re-pin every few days, not weekly.  The guard below catches it in
-            # about four minutes rather than burning a six hour job, and
-            # dominant_hash.py in the scratch tree computes the next pin
-            # straight from packagesite.yaml.
-            #
-            # Checking a hand-picked list is what let this through: on
-            # 2026-08-21 devel/libffi drifted (fetched 3.8.0, tree 3.7.1), which
-            # is upstream of glib and python312 and so of llvm19, mesa and gtk3
-            # -- poudriere deleted them all and queued 257 packages, and the VM
-            # stopped answering an hour into llvm19.  The list said the pin was
-            # fine because libffi was not on it.  Check every pre-seeded package
-            # instead, skipping the ports we deliberately build ourselves.
+            # Why this guard exists and how to re-pin: see the notes above
+            # the step.
             DRIFT=""
             for f in ${PKGDIR}/*.pkg; do
                 [ -f "${f}" ] || continue
