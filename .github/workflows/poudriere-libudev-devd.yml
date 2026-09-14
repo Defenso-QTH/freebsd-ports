@@ -141,12 +141,41 @@ jobs:
       # The patch is the merged upstream commits verbatim, so it can be
       # dropped as soon as a release contains them.
       #
-      # PORTREVISION=1 is what makes this work without pkg lock or
-      # "pkg install -f": 3.31.1_1 sorts above pkg.freebsd.org's
-      # 3.31.1, and below the next release (3.31.2, 3.32.0, ...), so
-      # the official package takes over again on its own once FreeRDP
-      # ships the fix.  The only tie is upstream bumping this port to
-      # exactly _1; _2 or a new DISTVERSION both win over us.
+      # PORTREVISION=1 makes 3.31.1_1 sort above pkg.freebsd.org's 3.31.1
+      # and below the next release (3.31.2, 3.32.0, ...).  That is
+      # necessary but NOT sufficient, and an earlier version of this
+      # comment was wrong to claim the official package takes over "on
+      # its own".  It does not, because of a pkg bug:
+      #
+      #   pkg_jobs_universe_select_candidate() (libpkg/pkg_jobs_universe.c)
+      #   calls pkg_jobs_universe_select_same_repo() FIRST for anything
+      #   already installed, and that function returns the first candidate
+      #   from the repo the installed package came from WITHOUT COMPARING
+      #   VERSIONS.  select_max_ver() is then never reached.  j->pinning is
+      #   hardcoded true (pkg_jobs.c:91) and cleared only when pkg upgrades
+      #   itself; there is no config knob, and CONSERVATIVE_UPGRADE=no does
+      #   NOT disable it -- conservative only reorders the fallbacks.
+      #   Reported as freebsd/pkg#1783 (2019), still open, no maintainer
+      #   response.  pkg-repository(5) documents the opposite behaviour.
+      #
+      # Consequence, measured on pkg 2.7.5 with two local repos:
+      #
+      #   installed from FreeBSD, want ours:
+      #     pkg upgrade                              -> stays on FreeBSD
+      #     pkg upgrade -r <ourrepo> freerdp3        -> works
+      #     pkg annotate -M freerdp3 repository <ourrepo>; pkg upgrade
+      #                                              -> works
+      #   installed from ours, FreeBSD ships 3.31.2:
+      #     pkg upgrade                              -> stays on ours
+      #     pkg upgrade -r FreeBSD freerdp3          -> works
+      #     pkg install  -r FreeBSD freerdp3         -> works
+      #     pkg annotate -M freerdp3 repository FreeBSD; pkg upgrade
+      #                                              -> works
+      #
+      # So when FreeRDP ships the fix, going back to the official package
+      # needs one deliberate command; it will not happen by itself.  Drop
+      # this port from the build list at that point rather than relying on
+      # version ordering to retire it.
       #
       # == the ports pin ==
       # Fail fast when the ports pin has drifted from pkg.freebsd.org.
