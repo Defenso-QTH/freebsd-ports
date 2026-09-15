@@ -1,6 +1,6 @@
 PORTNAME=	drm-612-kmod
 DISTVERSION=	${DRM_KMOD_DISTVERSION}
-PORTREVISION=	5
+PORTREVISION=	6
 CATEGORIES=	graphics kld
 
 .include "Makefile.version"
@@ -26,7 +26,7 @@ PATCH_STRIP=	-p1
 USE_GITHUB=	yes
 GH_ACCOUNT=	Defenso-QTH
 GH_PROJECT=	drm-kmod
-GH_TAGNAME=	021eb8a1ba06d5648e4286bec1066730edb6560a
+GH_TAGNAME=	28fae4bc26b5100e9a87cf141a3533ce19162ddf
 
 .include <bsd.port.options.mk>
 
