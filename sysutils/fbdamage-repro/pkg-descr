@@ -1,0 +1,11 @@
+Diagnostic kernel module that reproduces the drm-kmod fbdev console damage
+overrun: a full-width console rectangle drawn a few scanlines below the bottom
+edge of the screen, which the fbdev shadow-buffer damage worker
+(drm_fbdev_ttm_helper_fb_dirty via drm_fb_helper_damage_work) then reads past
+the end of, panicking a kernel whose drm-kmod lacks the clamp in
+drm_fb_helper_damage_area() and cfb_fillrect().
+
+It refuses to do anything unless the active console is the drmfb driver, and it
+only fires when debug.fbdamage_repro.go is set to 1, so merely installing or
+loading it is harmless.  With the fix in place it clips and survives; without
+it, it panics on purpose -- do not run it on a machine you cannot lose.
