@@ -192,24 +192,35 @@ jobs:
       #
       # Costs seconds.  Three runs were lost to this before it existed.
       #
-      # To re-pin: read annotations.ports_top_git_hash out of
-      # packagesite.yaml and pin to the newest hash among the packages we
-      # consume -- NOT main HEAD, which is ahead of what latest serves.
+      # To re-pin: read annotations.ports_top_git_hash and
+      # annotations.build_timestamp out of packagesite.yaml, group by
+      # hash, and pin to the hash of the MOST RECENT BUILD -- not main
+      # HEAD (ahead of what latest serves), not the most common hash,
+      # and not the newest hash among the packages we happen to consume.
       #
-      # Current pin: this branch is rebased onto upstream 08bf8552608d
-      # (2026-09-13).  e66ef70ebb is still the single most common hash
-      # in latest (12281 of 38033 packages), but "dominant" is the wrong
-      # test -- what matters is the NEWEST hash among the packages we
-      # consume, because a binary built from a newer tree than ours is
-      # what makes poudriere discard it and rebuild.  The consumed set
-      # grows to 247 packages with net/freerdp3 in the next commit, and
-      # with it the newest hash: freerdp3, gtk4 and libsoup3 come from
-      # 08bf8552608d (2026-09-13), ffmpeg from e26b1e4bc8ec (09-10),
-      # sdl2/sdl3/libva from 5c01d7a330c3 (09-08), dav1d from
-      # 2311e6d81e23 (09-05).  On the old pin the tree built ffmpeg
-      # 8.1.2_3,1 against latest's 9.0.1,1 and dav1d 1.5.3_1 against
-      # 1.5.4, either of which would have pulled ffmpeg -- and through
-      # it a large part of the closure -- into the build from source.
+      # Why the newest build is the right answer, and provably so: each
+      # hash IS the tree one incremental build used.  A package still
+      # carrying an older hash was left alone by that build, which means
+      # its port did not change between the two trees -- otherwise the
+      # builder would have rebuilt it.  So pinning to the newest build's
+      # tree reproduces every version latest currently serves, including
+      # the packages built weeks ago.  Counting packages per hash cannot
+      # see this and points at whichever build happened to be largest.
+      #
+      # Current pin: this branch is rebased onto upstream ab9b0dae6a5e
+      # (build of 2026-09-15).  The hash histogram at the time:
+      #
+      #   e66ef70ebb  12139 pkgs  built 2026-08-27   <- "dominant"
+      #   5c01d7a330   9625 pkgs  built 2026-09-08
+      #   e26b1e4bc8   6746 pkgs  built 2026-09-10
+      #   ab9b0dae6a   4285 pkgs  built 2026-09-15   <- newest, correct
+      #   08bf855260   4053 pkgs  built 2026-09-13   <- previous pin
+      #
+      # Run 183 died on the 08bf855260 pin two days after it was set:
+      # the 09-15 build moved libbluray 1.5.0,1 -> 1.5.1,1, libsoup3
+      # 3.7.1 -> 3.7.3, py312-tqdm 4.70.0 -> 4.70.1 and shaderc 2026.3
+      # -> 2026.4, all four consumed through net/freerdp3.  Picking the
+      # dominant hash instead would have gone BACKWARDS to 2026-08-27.
       #
       # A pin decays rather than breaking, because latest is rebuilt
       # forward continuously.  Observed lifetimes: 0c6548094 dominant at
