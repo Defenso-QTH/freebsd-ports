@@ -550,6 +550,16 @@ jobs:
             # repo offers only the stock virglrenderer.
             rm -f repo/All/virglrenderer-mvisor-*.pkg
 
+            # Pre-seeded binaries land in PKGDIR under a content-hashed name
+            # (seatd-0.9.3_1~2$1kh34stk.pkg) next to the plain one, and the
+            # glob above copies both -- run 182 published two byte-identical
+            # copies of seatd and wlroots020, each with its own catalogue
+            # entry.  Keep the plain name only.
+            for f in repo/All/*~*.pkg; do
+                [ -e "${f}" ] || continue
+                if [ -e "${f%%~*}.pkg" ]; then rm -f "${f}"; fi
+            done
+
             # Refuse to publish a repo that is missing packages we build here.
             #
             # The steps that upload to Pages carry no if() condition, so they
