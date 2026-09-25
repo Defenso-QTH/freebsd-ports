@@ -130,53 +130,6 @@ jobs:
       # rather than a dead VT when nothing can be done.  PORTREVISION is
       # bumped, so the pre-seeded 21.1.24,1 binary is superseded.
       #
-      # net/freerdp3 carries FreeRDP PR 13351 (merged upstream
-      # 2026-09-07, after 3.31.1 shipped).  3.31.1 maps
-      # GFX_PIXEL_FORMAT_XRGB_8888 to PIXEL_FORMAT_BGRA32
-      # unconditionally, so the alpha byte xrdp leaves undefined is
-      # honoured and the session renders wrong; upstream made that
-      # mapping conditional on RemoteApp mode and kept BGRX32
-      # otherwise.  3.31.0 and earlier were not affected -- the
-      # regression is specific to 3.31.1, which is what latest serves.
-      # The patch is the merged upstream commits verbatim, so it can be
-      # dropped as soon as a release contains them.
-      #
-      # PORTREVISION=1 makes 3.31.1_1 sort above pkg.freebsd.org's 3.31.1
-      # and below the next release (3.31.2, 3.32.0, ...).  That is
-      # necessary but NOT sufficient, and an earlier version of this
-      # comment was wrong to claim the official package takes over "on
-      # its own".  It does not, because of a pkg bug:
-      #
-      #   pkg_jobs_universe_select_candidate() (libpkg/pkg_jobs_universe.c)
-      #   calls pkg_jobs_universe_select_same_repo() FIRST for anything
-      #   already installed, and that function returns the first candidate
-      #   from the repo the installed package came from WITHOUT COMPARING
-      #   VERSIONS.  select_max_ver() is then never reached.  j->pinning is
-      #   hardcoded true (pkg_jobs.c:91) and cleared only when pkg upgrades
-      #   itself; there is no config knob, and CONSERVATIVE_UPGRADE=no does
-      #   NOT disable it -- conservative only reorders the fallbacks.
-      #   Reported as freebsd/pkg#1783 (2019), still open, no maintainer
-      #   response.  pkg-repository(5) documents the opposite behaviour.
-      #
-      # Consequence, measured on pkg 2.7.5 with two local repos:
-      #
-      #   installed from FreeBSD, want ours:
-      #     pkg upgrade                              -> stays on FreeBSD
-      #     pkg upgrade -r <ourrepo> freerdp3        -> works
-      #     pkg annotate -M freerdp3 repository <ourrepo>; pkg upgrade
-      #                                              -> works
-      #   installed from ours, FreeBSD ships 3.31.2:
-      #     pkg upgrade                              -> stays on ours
-      #     pkg upgrade -r FreeBSD freerdp3          -> works
-      #     pkg install  -r FreeBSD freerdp3         -> works
-      #     pkg annotate -M freerdp3 repository FreeBSD; pkg upgrade
-      #                                              -> works
-      #
-      # So when FreeRDP ships the fix, going back to the official package
-      # needs one deliberate command; it will not happen by itself.  Drop
-      # this port from the build list at that point rather than relying on
-      # version ordering to retire it.
-      #
       # == the ports pin ==
       # Fail fast when the ports pin has drifted from pkg.freebsd.org.
       #
@@ -368,7 +321,6 @@ jobs:
                 xorg-server \
                 meson ninja gmake pkgconf \
                 glslang spirv-tools spirv-headers evdev-proto hwdata scdoc \
-                freerdp3 \
                 py312-fido2 py312-hidapi py312-poetry py312-poetry-core py312-tqdm \
                 py312-intelhex py312-pyusb py312-cffi py312-crcmod \
                 py312-protobuf py312-semver py312-tlv8 py312-pyserial \
@@ -450,7 +402,7 @@ jobs:
             rm -f ${PKGDIR}/libdrm-*.pkg
 
             # What this list contains and why: see the notes above the step.
-            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nx11/virglrenderer\nx11-servers/xorg-server\nnet/freerdp3\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\nsysutils/fbdamage-repro\ngraphics/gpu-firmware-amd-kmod@gc_11_0_1\ngraphics/gpu-firmware-amd-kmod@psp_13_0_4\ngraphics/gpu-firmware-amd-kmod@sdma_6_0_1\ngraphics/gpu-firmware-amd-kmod@vcn_4_0_2\ngraphics/gpu-firmware-amd-kmod@dcn_3_1_4\n' > /tmp/pkglist
+            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nx11/virglrenderer\nx11-servers/xorg-server\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\nsysutils/fbdamage-repro\ngraphics/gpu-firmware-amd-kmod@gc_11_0_1\ngraphics/gpu-firmware-amd-kmod@psp_13_0_4\ngraphics/gpu-firmware-amd-kmod@sdma_6_0_1\ngraphics/gpu-firmware-amd-kmod@vcn_4_0_2\ngraphics/gpu-firmware-amd-kmod@dcn_3_1_4\n' > /tmp/pkglist
             # gpu-firmware-amd-kmod is flavoured, one package per GPU IP
             # block, so only the five Phoenix (gfx1103, Radeon 780M, device
             # 0x15bf) blocks are built rather than the ~130 in FLAVORS:
@@ -551,7 +503,7 @@ jobs:
             # pkg.freebsd.org configured.
             PKGDIR=/poudriere/data/packages/j151-local/All
             rm -rf repo && mkdir -p repo/All
-            for p in drm-612-kmod libudev-devd libdrm libdrm-devel libinput seatd wlroots020 virglrenderer vulkan-loader vulkan-headers libepoll-shim vm-bhyve bhyve-viewer xorg-server freerdp3 fbdamage-repro gpu-firmware-amd-kmod; do
+            for p in drm-612-kmod libudev-devd libdrm libdrm-devel libinput seatd wlroots020 virglrenderer vulkan-loader vulkan-headers libepoll-shim vm-bhyve bhyve-viewer xorg-server fbdamage-repro gpu-firmware-amd-kmod; do
                 cp ${PKGDIR}/${p}-*.pkg repo/All/ 2>/dev/null || true
             done
             # The retired virglrenderer-mvisor fork lingers in poudriere's
@@ -593,7 +545,7 @@ jobs:
             # leave that one alone.
             MISSING=""
             for p in drm-612-kmod libdrm virglrenderer xorg-server \
-                     vm-bhyve bhyve-viewer freerdp3 \
+                     vm-bhyve bhyve-viewer \
                      gpu-firmware-amd-kmod-gc-11-0-1; do
                 ls repo/All/${p}-[0-9]*.pkg >/dev/null 2>&1 || \
                     MISSING="${MISSING} ${p}"
