@@ -1,6 +1,6 @@
 PORTNAME=	metis
 DISTVERSION=	5.1.0-p13
-PORTREVISION=	1
+PORTREVISION=	2
 PORTEPOCH=	1
 CATEGORIES=	math
 MASTER_SITES=	https://bitbucket.org/petsc/pkg-metis/get/

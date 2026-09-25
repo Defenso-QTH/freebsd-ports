@@ -252,11 +252,18 @@ NAXSI_EXTRA_PATCHES=	${PATCHDIR}/extra-patch-naxsi-libinjection__sqli_c \
 
 NJS_BUILD_DEPENDS=	nginx-module-njs>=1.0.1:www/nginx-module-njs
 WRKSRC_njs=		${WRKDIR}/njs
-NJS_LIB_DEPENDS=	libquickjs.so:lang/quickjs \
-			libxml2.so:textproc/libxml2 \
-			libxslt.so:textproc/libxslt
 NJS_VARS=		DSO_EXTMODS+=njs NJS_SUBDIR=/nginx
-NJS_IMPLIES=		HTTP STREAM
+NJS_IMPLIES=		STREAM
+
+NJS_QJS_IMPLIES=	NJS
+NJS_QJS_LIB_DEPENDS=	libquickjs.so:lang/quickjs
+# njs auto-enables QuickJS whenever it is found at configure time,
+# keep the build deterministic when the option is disabled
+NJS_QJS_CONFIGURE_ENV_OFF=	NJS_QUICKJS=NO
+
+NJS_XML_IMPLIES=	HTTP NJS
+NJS_XML_LIB_DEPENDS=	libxml2.so:textproc/libxml2 \
+			libxslt.so:textproc/libxslt
 
 OTEL_GH_TUPLE=		osokin:nginx-otel:3a655df:otel
 OTEL_VARS=		DSO_EXTMODS+=otel OTEL_SUBDIR=/
@@ -324,10 +331,11 @@ STS_IMPLIES=		STREAM
 STS_GH_TUPLE=		vozlt:nginx-module-sts:3c10d42:sts
 STS_VARS=		DSO_EXTMODS+=sts
 
-VOD_GH_TUPLE=		diogoazevedos:nginx-vod-module:b9b4b44:vod
 VOD_LIB_DEPENDS=	libxml2.so:textproc/libxml2 \
 			libavutil.so:multimedia/ffmpeg
 VOD_USES=		iconv
+VOD_BUILD_DEPENDS=	nginx-module-vod>0:www/nginx-module-vod
+WRKSRC_vod=		${WRKDIR}/nginx-vod-module
 VOD_VARS=		DSO_EXTMODS+=vod
 
 VTS_GH_TUPLE=		vozlt:nginx-module-vts:c382342:vts

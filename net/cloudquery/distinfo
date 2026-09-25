@@ -1,5 +1,5 @@
-TIMESTAMP = 1789214719
-SHA256 (go/net_cloudquery/cloudquery-v6.42.2/v6.42.2.mod) = 4d25a11a1f1facda8b95db562149dae2f6bf8a8e0e9a1ede730d64740abf07cf
-SIZE (go/net_cloudquery/cloudquery-v6.42.2/v6.42.2.mod) = 8450
-SHA256 (go/net_cloudquery/cloudquery-v6.42.2/v6.42.2.zip) = a936c422000be1876664c2d6af2c20b56746baf4e0f22d8c4dd951521ac97cf5
-SIZE (go/net_cloudquery/cloudquery-v6.42.2/v6.42.2.zip) = 904920
+TIMESTAMP = 1790154681
+SHA256 (go/net_cloudquery/cloudquery-v6.43.0/v6.43.0.mod) = fe85f7d6c294abaa57cfa5cee3aa276a0756a9dff166a67058f07a65132555f7
+SIZE (go/net_cloudquery/cloudquery-v6.43.0/v6.43.0.mod) = 8450
+SHA256 (go/net_cloudquery/cloudquery-v6.43.0/v6.43.0.zip) = a512bf92919d076b88468a659b6ce0046180eb486ccfc98fa28ea3283c2d5d79
+SIZE (go/net_cloudquery/cloudquery-v6.43.0/v6.43.0.zip) = 904923

@@ -229,10 +229,10 @@ NPM_MODULE_CACHE?=	pnpm-store
 NPM_CMDNAME?=		pnpm
 NPM_CACHE_SETUP_CMD?=	${DO_NADA}
 NPM_FETCH_CMD?=		${NPM_CMDNAME} fetch
-NPM_FETCH_FLAGS+=	--frozen-lockfile --ignore-scripts --loglevel=error \
+NPM_FETCH_FLAGS+=	--ignore-scripts --loglevel=error \
 			--store-dir ${WRKDIR}/node-modules-cache/${NPM_MODULE_CACHE}
 NPM_EXTRACT_CMD?=	${NPM_CMDNAME} install
-NPM_EXTRACT_FLAGS+=	${NPM_FETCH_FLAGS} --offline
+NPM_EXTRACT_FLAGS+=	${NPM_FETCH_FLAGS} --frozen-lockfile --offline
 NPM_EXEC_CMD?=		${NPM_CMDNAME} exec
 NPM_REBUILD_CMD?=	${NPM_CMDNAME} rebuild
 .  endif
@@ -325,9 +325,8 @@ npm-archive-node-modules:
 		${TAR} -cz --options 'gzip:!timestamp' \
 			-f ${DISTDIR}/${DIST_SUBDIR}/${_DISTFILE_prefetch} \
 			-C ${WRKDIR} @node-modules-cache.mtree; \
-		if [ "${TMPDIR}" != "${WRKDIR}" ]; then \
-			${RM} -r ${WRKDIR}; \
-		fi; \
+		${RM} -r ${WRKDIR}/node-modules-cache \
+			${WRKDIR}/node-modules-cache.mtree; \
 	fi
 .    elif ${_NPM_NAME:Myarn*} || ${_NPM_NAME} == pnpm
 .      if ${_NPM_NAME} == pnpm
@@ -441,9 +440,8 @@ npm-archive-node-modules:
 			node-modules-cache.mtree && \
 		${TAR} -cz --options 'gzip:!timestamp' \
 			-f ${DISTDIR}/${DIST_SUBDIR}/${_DISTFILE_prefetch} @node-modules-cache.mtree; \
-		if [ "${TMPDIR}" != "${WRKDIR}" ]; then \
-			${RM} -r ${WRKDIR}; \
-		fi; \
+		${RM} -r ${WRKDIR}/node-modules-cache \
+			${WRKDIR}/node-modules-cache.mtree; \
 	fi
 .    endif
 .  endif

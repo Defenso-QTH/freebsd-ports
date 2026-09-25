@@ -1,5 +1,5 @@
-TIMESTAMP = 1789415000
-SHA256 (go/misc_crush/crush-v0.94.2/v0.94.2.mod) = 8e02b123b73a5400355a9dcdcb1526b6136a2f3534b64763803e82af5f1644ca
-SIZE (go/misc_crush/crush-v0.94.2/v0.94.2.mod) = 9730
-SHA256 (go/misc_crush/crush-v0.94.2/v0.94.2.zip) = e7046d0ca2cab8a0593033e26cc45f52dec7c9183328f56f3828fd174d1c685c
-SIZE (go/misc_crush/crush-v0.94.2/v0.94.2.zip) = 2845883
+TIMESTAMP = 1790135840
+SHA256 (go/misc_crush/crush-v0.96.1/v0.96.1.mod) = 81bc8cfa758a9ef035c611c723a18a233f583a816e55696d28f9cd5db3ce8f9a
+SIZE (go/misc_crush/crush-v0.96.1/v0.96.1.mod) = 9730
+SHA256 (go/misc_crush/crush-v0.96.1/v0.96.1.zip) = 79c6caf10c3df9cfef2b8a5b86337a39a4a39dd4632c298be886f81f9d209359
+SIZE (go/misc_crush/crush-v0.96.1/v0.96.1.zip) = 2932953

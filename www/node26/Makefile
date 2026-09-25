@@ -24,6 +24,7 @@ LIB_DEPENDS=	libada.so:devel/libada \
 		libffi.so:devel/libffi \
 		libgtest.so:devel/googletest \
 		libhdr_histogram.so:graphics/hdr_histogram \
+		libhwy.so:devel/highway \
 		libicui18n.so:devel/icu \
 		libLIEF.so:devel/lief \
 		libllhttp.so:www/llhttp \
@@ -48,6 +49,7 @@ CONFIGURE_ARGS=	--prefix=${PREFIX:S|^${DESTDIR}||} \
 		--shared-ffi \
 		--shared-gtest \
 		--shared-hdr-histogram \
+		--shared-highway \
 		--shared-http-parser \
 		--shared-libuv \
 		--shared-lief \
@@ -118,6 +120,7 @@ post-patch:
 	@${RM} -r ${WRKSRC}/deps/sqlite/
 	@${RM} -r ${WRKSRC}/deps/uv/
 	@${RM} -r ${WRKSRC}/deps/uvwasi/
+	@${RM} -r ${WRKSRC}/deps/v8/third_party/highway/
 	@${RM} -r ${WRKSRC}/deps/zlib/
 	@${RM} -r ${WRKSRC}/deps/zstd/
 

@@ -1,3 +1,497 @@
+  <vuln vid="0142953c-b716-11f1-a70f-00a0980083d7">
+    <topic>popt -- Out-of-bounds Write</topic>
+    <affects>
+    <package>
+	<name>popt</name>
+	<range><le>1.19_2,1</le></range>
+    </package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>https://access.redhat.com/errata/RHSA-2026:56984 reports:</p>
+	<blockquote cite="https://access.redhat.com/errata/RHSA-2026:56984">
+	  <p>A flaw was found in popt, a command-line option parsing library.
+	  An off-by-one error in the poptStuffArgs function, when repeatedly
+	  called by a host application or through deep alias nesting, can
+	  lead to corruption of internal program data.  This corruption could
+	  potentially enable a local attacker to execute arbitrary code if
+	  the host application then unsafely processes the altered data.</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2026-18739</cvename>
+      <url>https://cveawg.mitre.org/api/cve/CVE-2026-18739</url>
+    </references>
+    <dates>
+      <discovery>2026-08-04</discovery>
+      <entry>2026-09-23</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="e86be66a-b715-11f1-a70f-00a0980083d7">
+    <topic>popt -- Incorrect Calculation of Buffer Size</topic>
+    <affects>
+    <package>
+	<name>popt</name>
+	<range><le>1.19_2,1</le></range>
+    </package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>https://access.redhat.com/errata/RHSA-2026:56984 reports:</p>
+	<blockquote cite="https://access.redhat.com/errata/RHSA-2026:56984">
+	  <p>A flaw was found in popt.  This vulnerability allows an attacker
+	  to provide specially crafted configuration content to a host, which,
+	  when loaded, can lead to a small memory corruption issue.  This
+	  occurs because of an error in how the `poptConfigFileToString`
+	  function reallocates memory for buffers.  Successful exploitation
+	  could result in heap metadata corruption, potentially causing the
+	  affected process to become unavailable (denial of service).</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2026-18743</cvename>
+      <url>https://cveawg.mitre.org/api/cve/CVE-2026-18743</url>
+    </references>
+    <dates>
+      <discovery>2026-09-01</discovery>
+      <entry>2026-09-23</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="6690917c-b657-11f1-ad2b-40b034429ecf">
+    <topic>p5-Dancer2 -- Multiple vulnerabilities</topic>
+    <affects>
+<package>
+<name>p5-Dancer2</name>
+<range><lt>2.2.0</lt></range>
+</package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>Dancer project reports:</p>
+	<blockquote cite="http://www.openwall.com/lists/oss-security/2026/09/22/3">
+	  <p>Dancer2 versions before 2.2.0 for Perl do not strip CR and LF
+	  from response header names in headers_to_array. The routine removes
+	  CR and LF from each header value but not from the name. A name
+	  carrying them therefore reaches the PSGI server intact. A server
+	  that does not validate keys writes it to the wire, so the bytes
+	  after the CRLF arrive as their own header line. The application has
+	  to derive the header name from request data, not just the value. An
+	  attacker who controls that data adds their own headers and splits
+	  the response.</p>
+	</blockquote>
+	<blockquote cite="http://www.openwall.com/lists/oss-security/2026/09/22/1">
+	  <p>Dancer2 versions before 2.2.0 for Perl serve a layout as a page when an
+	  equivalent spelling of its path misses the guard in the AutoPage handler.
+	  The handler compares the request path against the layout directory name as
+	  text, while the lookup that follows canonicalises it. A doubled slash, a
+	  dot segment, a percent-encoded slash, or a different capitalisation on a
+	  case-insensitive filesystem therefore misses the guard. The handler is off
+	  by default, enabled with auto_page. The layout wrapping every page is
+	  already public, so this discloses one of the application's other layouts.</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2026-93709</cvename>
+      <cvename>CVE-2026-93711</cvename>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-93709</url>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-93711</url>
+    </references>
+    <dates>
+      <discovery>2026-09-22</discovery>
+      <entry>2026-09-22</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="5e6fe0cf-b655-11f1-ad2b-40b034429ecf">
+    <topic>p5-Dancer2 -- Multiple vulnerabilities</topic>
+    <affects>
+<package>
+<name>p5-Dancer2</name>
+<range><ge>2.0.0</ge><lt>2.2.0</lt></range>
+</package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>Dancer project reports:</p>
+	<blockquote cite="https://www.openwall.com/lists/oss-security/2026/09/22/2">
+	  <p>Dancer2 versions from 2.0.0 before 2.2.0 for Perl dispatch a
+	  route that a dying hook refused when the exception handler halts
+	  the response in compile_hooks. A hook that dies fires core.app.
+	  hook_exception, then calls cleanup unless the failing hook is the
+	  exception handler. A handler that halts does not stop that cleanup,
+	  which discards the request, response and session the dispatcher has
+	  yet to read, so the refused route runs. The handler has to halt the
+	  response object by calling its halt method or setting is_halted:
+	  the halt keyword unwinds through with_return before cleanup runs.
+	  A check in a before hook is not enforced: the caller gets the refusal,
+	  while the route body runs and its writes land.</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2026-93710</cvename>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-93710</url>
+    </references>
+    <dates>
+      <discovery>2026-09-22</discovery>
+      <entry>2026-09-22</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="c1980e14-b424-11f1-bd9f-10ffe07f9334">
+    <topic>mailpit -- Multi-frame animation bypass of thumbnail pixel budget</topic>
+    <affects>
+      <package>
+	<name>mailpit</name>
+	<range><lt>1.31.2</lt></range>
+      </package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>Mailpit author reports:</p>
+	<blockquote cite="https://github.com/axllent/mailpit/security/advisories/GHSA-2vgv-6hcp-mf43">
+	  <p>The fix for CVE-2026-67446 / GHSA-75mr-qw9x-3r39 ("Thumbnail
+	  generation decodes unbounded image dimensions before scaling",
+	  patched in v1.30.4) bounds only the width × height of a single frame.
+	  The decoded-size budget is still not enforced over frame count,
+	  so an animated PNG whose per-frame dimensions sit just under the
+	  limit still expands to a multiple of it. A remote, unauthenticated
+	  client can deliver such an attachment over SMTP and then request
+	  one thumbnail to force a multi-gigabyte native allocation.</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <url>https://github.com/axllent/mailpit/security/advisories/GHSA-2vgv-6hcp-mf43</url>
+    </references>
+    <dates>
+      <discovery>2026-09-19</discovery>
+      <entry>2026-09-19</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="6cf2ff4b-b38c-11f1-a655-3497f65b111b">
+    <topic>Angie -- worker process memory corruption when using HTTP/3</topic>
+    <affects>
+      <package>
+	<name>angie</name>
+	<range><lt>1.12.2</lt></range>
+      </package>
+    </affects>
+    <description>
+      <body xmlns="http://www.w3.org/1999/xhtml">
+	<p>The Angie Software Team reports:</p>
+	<blockquote cite="https://en.angie.software/angie/docs/oss_changes/#angie-1-12-2">
+	  <p>When using an OpenSSL version without native HTTP/3 support
+	    (3.5.0 or earlier), if the default server for the address that
+	    accepted a regular HTTPS request also used HTTP/3 (the listen
+	    directive with the quic parameter, possibly on a different port),
+	    while a server block without HTTP/3 was selected by domain name
+	    (SNI), limited worker process memory corruption or a worker
+	    process crash could occur (CVE-2026-90439); the fix was ported
+	    from nginx 1.31.6.</p>
+	</blockquote>
+      </body>
+    </description>
+    <references>
+      <cvename>CVE-2026-90439</cvename>
+      <url>https://nvd.nist.gov/vuln/detail/CVE-2026-90439</url>
+      <url>https://en.angie.software/angie/docs/oss_changes/#angie-1-12-2</url>
+    </references>
+    <dates>
+      <discovery>2026-09-17</discovery>
+      <entry>2026-09-18</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="6cf326a2-b38c-11f1-a655-3497f65b111b">
+    <topic>angie-module-njs -- multiple vulnerabilities</topic>
+    <affects>
+      <package>
+	<name>angie-module-njs</name>
+	<range><lt>1.0.1,1</lt></range>
+      </package>
+    </affects>
+    <description>
+      <body xmlns="http://www.w3.org/1999/xhtml">
+	<p>The njs development team reports:</p>
+	<blockquote cite="https://nginx.org/en/docs/njs/changes.html#njs1.0.1">
+	  <p>Access control bypass in js_access when an asynchronous request
+	    body continuation threw an exception or produced an unhandled
+	    rejection (CVE-2026-18329).  Previously, nginx could continue
+	    processing the request as though the js_access check had
+	    succeeded.  Affects 0.9.9-1.0.0.</p>
+	  <p>Worker process crash when reading Response.statusText after an
+	    upstream server returned a status line with an empty reason
+	    phrase (CVE-2026-78222).  Affects 0.5.1-1.0.0.</p>
+	  <p>Heap buffer overflow while parsing namespace prefix lists
+	    passed to xml.exclusiveC14n() (CVE-2026-78689).  Affects
+	    0.7.10-1.0.0.</p>
+	</blockquote>
+      </body>
+    </description>
+    <references>
+      <cvename>CVE-2026-18329</cvename>
+      <cvename>CVE-2026-78222</cvename>
+      <cvename>CVE-2026-78689</cvename>
+      <url>https://nginx.org/en/docs/njs/changes.html#njs1.0.1</url>
+      <url>https://nginx.org/en/docs/njs/security.html#advisories</url>
+    </references>
+    <dates>
+      <discovery>2026-09-02</discovery>
+      <entry>2026-09-18</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="a2fda5d7-b2fb-11f1-9800-641c67a117d8">
+    <topic>Vinyl/Varnish -- VCL string methods workspace overflow</topic>
+    <affects>
+      <package>
+      <name>vinyl09</name>
+      <range><lt>9.0.2</lt></range>
+      </package>
+      <package>
+      <name>varnish7</name>
+      <range><ge>6.3.0</ge><le>8.0.2</le></range>
+      </package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>Vinyl Development Team reports:</p>
+	<blockquote cite="https://vinyl-cache.org/security/VSV00020.html">
+	  <p>A workspace buffer overflow vulnerability was found in the .upper()
+	  and .lower() string type methods of VCL.</p>
+	  <p>This can be used as a remote denial of service (DoS) vector to make
+	  the child process segfault or assert, and then restart.</p>
+	  <p>Effectively exploiting this vulnerability requires prior knowledge
+	  about the VCL in use and the ability to craft a request that contains a
+	  string that is long enough to fill the remaining workspace at the call
+	  site while staying under the different request size limits
+	  (http_req_size, http_req_hdr_len, ..etc).</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <url>https://vinyl-cache.org/security/VSV00020.html</url>
+    </references>
+    <dates>
+      <discovery>2026-09-16</discovery>
+      <entry>2026-09-18</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="3f5c81ae-b227-11f1-a655-3497f65b111b">
+    <topic>389-ds-base -- multiple vulnerabilities</topic>
+    <affects>
+    <package>
+	<name>389-ds-base</name>
+	<range><lt>3.2.3</lt></range>
+    </package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>The 389 Directory Server project reports:</p>
+	<blockquote cite="https://github.com/389ds/389-ds-base/releases/tag/389-ds-base-3.2.3">
+	  <p>CVE-2026-11770: the replication extended operations did not
+	    verify that the bind DN is accepted by the replica, and the
+	    CleanRUV status filters were open to LDAP injection.</p>
+	  <p>CVE-2026-18355: a missing minimum length check in
+	    sasl_io_start_packet() lets an authenticated SASL user trigger
+	    an unsigned integer underflow, causing heap corruption and a
+	    crash of the server.</p>
+	  <p>CVE-2026-18453: op_shared_search() does not check for a NULL
+	    backend pointer when reusing a paged results slot, so an
+	    unauthenticated client can crash ns-slapd with two search
+	    requests on one connection. Paged results and anonymous access
+	    are enabled by default.</p>
+	  <p>CVE-2026-18922: a failed one-shot SASL exchange leaves stale
+	    identity data in the auxprop context, so a later successful
+	    bind on the same connection can inherit it and escalate to
+	    Directory Manager.</p>
+	  <p>CVE-2026-19843: the cockpit LDAP editor passed the entry DN
+	    into a shell command line, so a user who can create or rename
+	    an entry can have the host run commands as root when an
+	    administrator opens that entry.</p>
+	  <p>CVE-2026-76560: anonymous clients could satisfy SELFDN,
+	    USERDNATTR and LDAPURL ACL bind rules, granting unauthorized
+	    access.</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2026-11770</cvename>
+      <cvename>CVE-2026-18355</cvename>
+      <cvename>CVE-2026-18453</cvename>
+      <cvename>CVE-2026-18922</cvename>
+      <cvename>CVE-2026-19843</cvename>
+      <cvename>CVE-2026-76560</cvename>
+      <url>https://github.com/389ds/389-ds-base/releases/tag/389-ds-base-3.2.3</url>
+      <url>https://access.redhat.com/security/cve/CVE-2026-11770</url>
+      <url>https://access.redhat.com/security/cve/CVE-2026-18355</url>
+      <url>https://access.redhat.com/security/cve/CVE-2026-18453</url>
+      <url>https://access.redhat.com/security/cve/CVE-2026-18922</url>
+      <url>https://access.redhat.com/security/cve/CVE-2026-19843</url>
+      <url>https://access.redhat.com/security/cve/CVE-2026-76560</url>
+    </references>
+    <dates>
+      <discovery>2026-09-07</discovery>
+      <entry>2026-09-17</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="0627020f-b21c-11f1-bc39-5404a68ad561">
+    <topic>traefik -- Multiple vulnerabilities</topic>
+    <affects>
+      <package>
+      <name>traefik</name>
+      <range><lt>3.7.13</lt></range>
+      </package>
+    </affects>
+    <description>
+      <body xmlns="http://www.w3.org/1999/xhtml">
+      <p>The traefik project releases a new version addressing multiple vulnerabilities:</p>
+      <blockquote cite="https://github.com/traefik/traefik/releases/tag/v3.7.13">
+      <ul>
+      <li>GHSA-qqjf-53cj-pwvv (HTTP/3 Backend NTLM Connection Reuse)</li>
+      <li>GHSA-f52w-8j3h-j724 (bypassing path-scoped routing)</li>
+      <li>GHSA-v67p-phpq-fc8x (entrypoint header-name sanitization bypass)</li>
+      <li>GHSA-w4v4-9rw7-5326 (HTTP Request/Response Smuggling)</li>
+      <li>GHSA-8fcf-v89g-xpg6 (unauthenticated username-enumeration timing oracle)</li>
+      </ul>
+      </blockquote>
+      </body>
+    </description>
+    <references>
+      <url>https://github.com/traefik/traefik/releases/tag/v3.7.13</url>
+    </references>
+    <dates>
+      <discovery>2026-09-04</discovery>
+      <entry>2026-09-16</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="a738c927-b216-11f1-bc39-5404a68ad561">
+    <topic>mkvtoolnix -- Heap Buffer Overflow via avilib ODML Superindex Integer Wraparound</topic>
+    <affects>
+      <package>
+      <name>mkvtoolnix</name>
+      <range><lt>102.0</lt></range>
+      </package>
+    </affects>
+    <description>
+      <body xmlns="http://www.w3.org/1999/xhtml">
+      <p>Moritz Bunkus reports:</p>
+      <blockquote cite="https://mkvtoolnix.download/doc/ChangeLog">
+       <p>potential heap overflows/invalid memory access in the ODML index handling due to
+       unsiged integer multiplication wrapping around (colloquially known as "overflowing")
+       with specifically crafted AVI files. Affects only mkvmerge as the other tools do
+       not read AVIs</p>
+      </blockquote>
+      </body>
+    </description>
+    <references>
+      <cvename>CVE-2026-90783</cvename>
+      <url>https://www.cve.org/CVERecord?id=CVE-2026-90783</url>
+    </references>
+    <dates>
+      <discovery>2026-08-25</discovery>
+      <entry>2026-09-16</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="3f4d285d-b1f6-11f1-8f5e-3c7c3fba4204">
+    <topic>Unbound -- multiple vulnerabilities</topic>
+    <affects>
+	<package>
+	  <name>unbound</name>
+	  <range><lt>1.26.1</lt></range>
+	</package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>NLnet Labs reports:</p>
+	<blockquote cite="https://community.nlnetlabs.nl/t/unbound-1-26-1-released/3463">
+	  <p>This release consolidates security fixes for issues reported over
+	  a period of time. There are fixes for:</p>
+	  <ul>
+	  <li>CVE-2026-81642: Heap buffer overflow and possible Remote Code
+	  Execution when digesting DNSKEY.</li>
+	  <li>CVE-2026-81634: Possible heap buffer overflow during DNSSEC
+	  canonicalization.</li>
+	  <li>CVE-2026-82717: CNAME synthesis could lead to heap corruption.</li>
+	  <li>CVE-2026-77955: Possible ZONEMD verification bypass window.</li>
+	  <li>CVE-2026-78227: Use-after-free in DoQ stream output buffer on
+	  reset re-transmission.</li>
+	  <li>CVE-2026-80225: Possible degradation of service from continuous
+	  queries on the same TCP/DoT connection.</li>
+	  <li>CVE-2026-82720: Use-after-free in DoH stream cleanup code path.</li>
+	  <li>CVE-2026-85501: Retrap: Novel Vulnerabilities to launch
+	  Algorithmic Complexity Attacks on DNSSEC.</li>
+	  <li>CVE-2026-77860: ‘serve-expired’ can bypass Unbound ‘wait-limit’.</li>
+	  </ul>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2026-81642</cvename>
+      <cvename>CVE-2026-81634</cvename>
+      <cvename>CVE-2026-82717</cvename>
+      <cvename>CVE-2026-77955</cvename>
+      <cvename>CVE-2026-78227</cvename>
+      <cvename>CVE-2026-80225</cvename>
+      <cvename>CVE-2026-82720</cvename>
+      <cvename>CVE-2026-85501</cvename>
+      <cvename>CVE-2026-77860</cvename>
+      <url>https://community.nlnetlabs.nl/t/unbound-1-26-1-released/3463</url>
+      <url>https://github.com/NLnetLabs/unbound/releases/tag/release-1.26.1</url>
+      <url>https://www.nlnetlabs.nl/projects/unbound/security-advisories/</url>
+    </references>
+    <dates>
+      <discovery>2026-09-15</discovery>
+      <entry>2026-09-16</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="7dc8fd4b-b1a7-11f1-a655-3497f65b111b">
+    <topic>nginx -- buffer overflow when using ngx_http_v3_module</topic>
+    <affects>
+    <package>
+	<name>nginx</name>
+	<range><lt>1.30.5,3</lt></range>
+    </package>
+    <package>
+	<name>nginx-devel</name>
+	<range><lt>1.31.6</lt></range>
+    </package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>The nginx development team reports:</p>
+	<blockquote cite="https://nginx.org/en/security_advisories.html">
+	  <p>Buffer overflow when using ngx_http_v3_module
+	    (CVE-2026-90439). Severity: medium.</p>
+	  <p>A heap memory buffer overflow might occur in a worker
+	    process under certain configurations when using HTTP/3 with
+	    OpenSSL 3.5.0 and earlier.</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2026-90439</cvename>
+      <url>https://my.f5.com/manage/s/article/K000162604</url>
+      <url>https://nginx.org/en/security_advisories.html</url>
+    </references>
+    <dates>
+      <discovery>2026-09-15</discovery>
+      <entry>2026-09-16</entry>
+    </dates>
+  </vuln>
+
   <vuln vid="ce54d883-b060-11f1-b187-901b0edee044">
     <topic>anki -- multiple vulnerabilities</topic>
     <affects>
@@ -91,7 +585,7 @@
     <affects>
     <package>
 	<name>cjose</name>
-	<range><lt>&amp;lt; 0.6.2.5</lt></range>
+	<range><lt>0.6.2.5</lt></range>
     </package>
     </affects>
     <description>
@@ -407,21 +901,27 @@
     <affects>
 	<package>
 	  <name>immich</name>
-	  <range><le>3.2.0</le></range>
+	  <range><le>3.2.2</le></range>
 	</package>
     </affects>
     <description>
 	<body xmlns="http://www.w3.org/1999/xhtml">
-	<p>NVD reports:</p>
+	<p>VulnCheck reports:</p>
 	<blockquote cite="https://nvd.nist.gov/vuln/detail/CVE-2026-82272">
 	  <p>Immich through 3.1.0 fails to properly enforce locked asset
 	    visibility when assets are locked through the single-asset
 	    endpoint, allowing them to remain accessible through shared
 	    albums and links.</p>
 	</blockquote>
-	<p>The single-asset code path still lacks the album removal that the
-	  bulk path performs, so 3.2.0 is affected as well.  Upstream has not
-	  released a fix yet.</p>
+	<p>In 3.2.2 the single-asset endpoint still lacks the album removal
+	  that the bulk endpoint performs, and the album and shared link
+	  access checks still carry no visibility filter.  Both code paths
+	  of the web interface use the bulk endpoint, so the state can only
+	  be reached by calling the API directly, and such assets stay
+	  visible only to those the owner already shares the album or the
+	  link with.  The identifier was assigned by VulnCheck, not by the
+	  immich project, which has published no advisory and has not
+	  confirmed the report.  NVD has not analysed the entry.</p>
 	</body>
     </description>
     <references>
@@ -432,6 +932,7 @@
     <dates>
       <discovery>2026-08-28</discovery>
       <entry>2026-09-11</entry>
+      <modified>2026-09-16</modified>
     </dates>
   </vuln>
 

@@ -54,6 +54,7 @@
     SUBDIR += jd-gui-duo
     SUBDIR += jdk11-doc
     SUBDIR += jdk8-doc
+    SUBDIR += jextract
     SUBDIR += jflex
     SUBDIR += jfreechart
     SUBDIR += jgraph
@@ -84,6 +85,7 @@
     SUBDIR += openjdk21-jre
     SUBDIR += openjdk25
     SUBDIR += openjdk26
+    SUBDIR += openjdk27
     SUBDIR += openjdk8
     SUBDIR += openjdk8-jre
     SUBDIR += openjfx14

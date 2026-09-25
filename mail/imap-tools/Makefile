@@ -1,9 +1,7 @@
 PORTNAME=	imap-tools
-DISTVERSION=	1.11.0
-PORTREVISION=	3
+DISTVERSION=	1.13.0
 CATEGORIES=	mail
 MASTER_SITES=	CRATESIO
-DISTFILES=	${CARGO_DIST_SUBDIR}/${DISTNAME}${CARGO_CRATE_EXT}
 
 MAINTAINER=	mat@FreeBSD.org
 COMMENT=	A collection of tools to manipulate IMAP mailboxes
@@ -12,8 +10,6 @@ WWW=		https://gitlab.com/mat813/imap-tools-rs
 LICENSE=	MIT
 
 USES=		cargo
-
-CARGO_FEATURES=	json
 
 PLIST_FILES=	bin/imap-tools
 

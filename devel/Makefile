@@ -704,6 +704,7 @@
     SUBDIR += etcd34
     SUBDIR += etcd35
     SUBDIR += etcd36
+    SUBDIR += etcd37
     SUBDIR += etl
     SUBDIR += evcxr-jupyter
     SUBDIR += evdev-proto
@@ -5140,7 +5141,6 @@
     SUBDIR += py-fuzzywuzzy
     SUBDIR += py-fypp
     SUBDIR += py-game
-    SUBDIR += py-game_sdl2
     SUBDIR += py-gapic-generator
     SUBDIR += py-gast
     SUBDIR += py-gelidum
@@ -5582,6 +5582,7 @@
     SUBDIR += py-opencensus-context
     SUBDIR += py-opendht
     SUBDIR += py-openfeature-sdk
+    SUBDIR += py-opengrok-tools
     SUBDIR += py-openstacksdk
     SUBDIR += py-opentelemetry-api
     SUBDIR += py-opentelemetry-configuration
@@ -6017,6 +6018,7 @@
     SUBDIR += py-pytest-repeat
     SUBDIR += py-pytest-rerunfailures
     SUBDIR += py-pytest-retry
+    SUBDIR += py-pytest-rich
     SUBDIR += py-pytest-ruff
     SUBDIR += py-pytest-run-parallel
     SUBDIR += py-pytest-services
@@ -6038,13 +6040,13 @@
     SUBDIR += py-pytest-xprocess
     SUBDIR += py-pytest_httpserver
     SUBDIR += py-python-application
+    SUBDIR += py-python-box
     SUBDIR += py-python-bugzilla
     SUBDIR += py-python-dateutil
     SUBDIR += py-python-dbusmock
     SUBDIR += py-python-decouple
     SUBDIR += py-python-discovery
     SUBDIR += py-python-distutils-extra
-    SUBDIR += py-python-dtrace
     SUBDIR += py-python-easyconfig
     SUBDIR += py-python-editor
     SUBDIR += py-python-engineio
@@ -6314,6 +6316,8 @@
     SUBDIR += py-tasklib
     SUBDIR += py-tatsu
     SUBDIR += py-tatsu-lts
+    SUBDIR += py-tavalidate
+    SUBDIR += py-tavern
     SUBDIR += py-tblib
     SUBDIR += py-tdworkflow
     SUBDIR += py-telepath
@@ -6370,6 +6374,7 @@
     SUBDIR += py-tree-format
     SUBDIR += py-tree-sitter
     SUBDIR += py-tree-sitter-bash
+    SUBDIR += py-tree-sitter-c
     SUBDIR += py-tree-sitter-css
     SUBDIR += py-tree-sitter-go
     SUBDIR += py-tree-sitter-javascript
@@ -6377,10 +6382,10 @@
     SUBDIR += py-tree-sitter-python
     SUBDIR += py-tree-sitter-regex
     SUBDIR += py-tree-sitter-sql
+    SUBDIR += py-tree-sitter-typescript
     SUBDIR += py-tree-sitter-yaml
     SUBDIR += py-tree-sitter023
     SUBDIR += py-treelib
-    SUBDIR += py-trimesh
     SUBDIR += py-trove-classifiers
     SUBDIR += py-ttictoc
     SUBDIR += py-ttkbootstrap
@@ -7802,6 +7807,7 @@
     SUBDIR += rubygem-google-iam-v1
     SUBDIR += rubygem-google-logging-utils
     SUBDIR += rubygem-google-protobuf
+    SUBDIR += rubygem-google-protobuf-gitlab
     SUBDIR += rubygem-google-protobuf3
     SUBDIR += rubygem-googleapis-common-protos
     SUBDIR += rubygem-googleapis-common-protos-gitlab
@@ -8995,6 +9001,7 @@
     SUBDIR += zeal
     SUBDIR += zfp
     SUBDIR += zix
+    SUBDIR += zizmor
     SUBDIR += zls
     SUBDIR += zookeeper
     SUBDIR += zthread

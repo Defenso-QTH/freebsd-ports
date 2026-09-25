@@ -312,7 +312,10 @@
     SUBDIR += ilias
     SUBDIR += imaginary
     SUBDIR += immich
+    SUBDIR += immich-cli
+    SUBDIR += immich-go
     SUBDIR += immich-ml
+    SUBDIR += immich-public-proxy
     SUBDIR += iocaine
     SUBDIR += iridium
     SUBDIR += janus
@@ -534,6 +537,7 @@
     SUBDIR += nginx-module-lua-stream
     SUBDIR += nginx-module-ndk
     SUBDIR += nginx-module-njs
+    SUBDIR += nginx-module-vod
     SUBDIR += nginx-naxsi
     SUBDIR += nginx-prometheus-exporter
     SUBDIR += nginx-ultimate-bad-bot-blocker
@@ -1564,6 +1568,7 @@
     SUBDIR += py-cheroot
     SUBDIR += py-cherrypy
     SUBDIR += py-cherrypy-cors
+    SUBDIR += py-choreographer
     SUBDIR += py-cinemagoer
     SUBDIR += py-cross-web
     SUBDIR += py-crossplane
@@ -1915,6 +1920,7 @@
     SUBDIR += py-priority1
     SUBDIR += py-prometheus-fastapi-instrumentator
     SUBDIR += py-protego
+    SUBDIR += py-proxpi
     SUBDIR += py-proxy.py
     SUBDIR += py-proxy_tools
     SUBDIR += py-puppetboard
@@ -2024,6 +2030,7 @@
     SUBDIR += py-wcag-contrast-ratio
     SUBDIR += py-webargs
     SUBDIR += py-webassets
+    SUBDIR += py-webdavclient3
     SUBDIR += py-webdriver_manager
     SUBDIR += py-webob
     SUBDIR += py-websocket-client

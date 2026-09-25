@@ -9,9 +9,10 @@ set -o pipefail
 
 validate_env dp_DEVELOPER dp_DISABLE_SIZE dp_DISTDIR dp_DISTINFO_FILE \
 	dp_DIST_SUBDIR dp_ECHO_MSG dp_FETCH_AFTER_ARGS dp_FETCH_BEFORE_ARGS \
-	dp_FETCH_CMD dp_FETCH_ENV dp_FORCE_FETCH_ALL dp_FORCE_FETCH_LIST \
-	dp_MASTER_SITE_BACKUP dp_MASTER_SITE_OVERRIDE dp_MASTER_SORT_AWK \
-	dp_NO_CHECKSUM dp_RANDOMIZE_SITES dp_SITE_FLAVOR dp_TARGET
+	dp_FETCH_CMD dp_FETCH_ENV dp_FILES_FILE dp_FORCE_FETCH_ALL \
+	dp_FORCE_FETCH_LIST dp_MASTER_SITE_BACKUP dp_MASTER_SITE_OVERRIDE \
+	dp_MASTER_SORT_AWK dp_NO_CHECKSUM dp_RANDOMIZE_SITES dp_SITE_FLAVOR \
+	dp_SITES_FILE dp_TARGET
 
 [ -n "${DEBUG_MK_SCRIPTS}" -o -n "${DEBUG_MK_SCRIPTS_DO_FETCH}" ] && set -x
 
@@ -26,7 +27,11 @@ case ${dp_TARGET} in
 		;;
 esac
 
-for _file in "${@}"; do
+. $dp_SITES_FILE
+
+# Read the list of files to fetch from stdin, one per line, instead of
+# from the command line to workatound ARG_MAX limits.
+while IFS= read -r _file; do
 	file=${_file%%:*}
 
 	# If this files has groups
@@ -180,5 +185,5 @@ for _file in "${@}"; do
 			echo "echo \"${file}\" not fetched; }"
 			;;
 	esac
-done
+done < $dp_FILES_FILE
 

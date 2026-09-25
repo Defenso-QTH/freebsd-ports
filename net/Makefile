@@ -270,6 +270,7 @@
     SUBDIR += icmpinfo
     SUBDIR += icpld
     SUBDIR += identme
+    SUBDIR += if_pair-kmod
     SUBDIR += ifdepd
     SUBDIR += iffinder
     SUBDIR += ifstat
@@ -1048,7 +1049,6 @@
     SUBDIR += pwnat
     SUBDIR += pxe
     SUBDIR += pxe-pdhcp
-    SUBDIR += py-DTLSSocket
     SUBDIR += py-GeoIP2
     SUBDIR += py-aiocoap
     SUBDIR += py-aiohappyeyeballs
@@ -1101,7 +1101,6 @@
     SUBDIR += py-ldappool
     SUBDIR += py-lib389
     SUBDIR += py-libcloud
-    SUBDIR += py-libdnet
     SUBDIR += py-macaddress
     SUBDIR += py-magic-wormhole
     SUBDIR += py-matrix-synapse-ldap3
@@ -1127,7 +1126,6 @@
     SUBDIR += py-port-for
     SUBDIR += py-portend
     SUBDIR += py-pychromecast
-    SUBDIR += py-pyenet
     SUBDIR += py-pyfixbuf
     SUBDIR += py-pygeoip
     SUBDIR += py-pyicap
@@ -1161,7 +1159,6 @@
     SUBDIR += py-python-openstackclient
     SUBDIR += py-python-socks
     SUBDIR += py-python-twitter
-    SUBDIR += py-pytradfri
     SUBDIR += py-pyu2f
     SUBDIR += py-pyvmomi
     SUBDIR += py-pyzmq
@@ -1196,6 +1193,7 @@
     SUBDIR += py-suds
     SUBDIR += py-terminado
     SUBDIR += py-tiny-proxy
+    SUBDIR += py-tinytuya
     SUBDIR += py-tofu
     SUBDIR += py-transip
     SUBDIR += py-trio
@@ -1739,6 +1737,7 @@
     SUBDIR += wmwave
     SUBDIR += wmwifi
     SUBDIR += wol
+    SUBDIR += wormhole-william
     SUBDIR += wpa_supplicant_gui
     SUBDIR += wping
     SUBDIR += wstunnel

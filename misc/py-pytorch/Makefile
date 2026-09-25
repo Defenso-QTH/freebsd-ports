@@ -1,6 +1,7 @@
 PORTNAME=	pytorch
 DISTVERSIONPREFIX=	v
 DISTVERSION=	2.14.0
+PORTREVISION=	2
 CATEGORIES=	misc # machine-learning
 MASTER_SITES=	https://github.com/pytorch/pytorch/releases/download/v${DISTVERSION}/
 PKGNAMEPREFIX=	${PYTHON_PKGNAMEPREFIX}
@@ -15,7 +16,6 @@ WWW=		https://pytorch.org/ \
 LICENSE=	BSD3CLAUSE
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-BROKEN_aarch64=	build fails: CMake Error at third_party/QNNPACK/CMakeLists.txt:47 (MESSAGE): Unrecognized CMAKE_SYSTEM_NAME = FreeBSD, see https://github.com/pytorch/pytorch/issues/144608
 BROKEN_armv7=	build fails: CMake Error at third_party/QNNPACK/CMakeLists.txt:47 (MESSAGE): Unrecognized CMAKE_SYSTEM_NAME = FreeBSD, see https://github.com/pytorch/pytorch/issues/144608
 BROKEN_i386=	build fails: DispatchStub.cpp:162:29: [0m[0;1;31merror: [0m[1muse of undeclared identifier 'AVX2'[0m
 
@@ -103,6 +103,12 @@ VULKAN_LIB_DEPENDS=	libvulkan.so:graphics/vulkan-loader
 CONFLICTS_BUILD=	mpich # binaries are still linked with mpich when it is present
 
 .include <bsd.port.options.mk>
+
+.if ${ARCH} == aarch64
+# torch's many dlopen'd shared libraries (OpenMP, mimalloc, cpuinfo, etc.) require
+# more initial-exec TLS than rtld's small default dlopen reserve, see rtld(1)
+TEST_ENV+=	LD_STATIC_TLS_EXTRA=4096
+.endif
 
 post-extract:
 	# upstream ships a stray *.orig file that 'make makepatch' would otherwise
