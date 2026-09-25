@@ -1,6 +1,6 @@
 PORTNAME=	drm-612-kmod
 DISTVERSION=	${DRM_KMOD_DISTVERSION}
-PORTREVISION=	7
+PORTREVISION=	6
 CATEGORIES=	graphics kld
 
 .include "Makefile.version"
@@ -22,16 +22,6 @@ CONFLICTS_INSTALL=	drm-latest-kmod \
 
 USES=		kmod uidfix compiler:c++11-lang
 PATCH_STRIP=	-p1
-
-# Diagnostic build: ship the modules UNSTRIPPED so a crash inside drm.ko /
-# amdgpu.ko is analyzable from a vmcore (kgdb reads the symbols straight out of
-# /boot/modules/*.ko; the stripped _6 package left "No debugging symbols found
-# in /boot/modules/drm.ko" in the dump).  DEBUG_FLAGS is left at the default -g
-# so codegen matches the non-debug build -- only symbols are retained, no source
-# change and no -O0.  This is NOT the damage-clamp fix; that is deliberately not
-# applied here.  Expect a noticeably larger package.  Drop WITH_DEBUG once the
-# fbdev damage overrun is diagnosed.
-WITH_DEBUG=	yes
 
 USE_GITHUB=	yes
 GH_ACCOUNT=	Defenso-QTH
