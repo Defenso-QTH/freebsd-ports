@@ -1,4 +1,4 @@
-name: poudriere-libudev-devd
+name: poudriere
 
 on:
   push:
