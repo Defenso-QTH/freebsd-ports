@@ -1,3 +1,238 @@
+  <vuln vid="675bc714-b8cd-11f1-ad2b-40b034429ecf">
+    <topic>databases/p5-DBI -- multiple vulnerabilities</topic>
+    <affects>
+<package>
+<name>p5-DBI</name>
+<range><lt>1.654</lt></range>
+</package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>DBI project reports:</p>
+	<blockquote cite="https://metacpan.org/dist/DBI/changes">
+	  <p>DBI 1.650, 1.651, 1.652, 1.653 and 1.654 fix the following issues:</p>
+	  <ul>
+	    <li>CVE-2026-88815: Fix DBI::sql_type_cast on IV/NV</li>
+	    <li>CVE-2026-88816: Fix FetchHashKeyName   on IV/NV</li>
+	    <li>CVE-2026-78030: Fix arbitrary module and file loading via dbm_type/dbm_mldbm</li>
+	    <li>CVE-2026-15392: Tighten symlink outside of f_dir</li>
+	    <li>CVE-2026-73194: Force placeholder limit on :# and :p# too</li>
+	    <li>CVE-2026-73193: Limit statements to 292 Mb in preparse</li>
+	    <li>CVE-2026-15043: Fix inverted comparisons for strings in DBI::SQL::Nano</li>
+	    <li>CVE-2026-15392: Fix DBD::File to ensure that the table is not a symlink outside of f_dir</li>
+	    <li>CVE-2026-60082: Fix an out-of-bounds error when a statement handle has no fields but the source row is not empty</li>
+	    <li>CVE-2026-60081: Add an overridable upper bound $MAX_PATH_DEPTH for DBI::ProfileData</li>
+	    <li>CVE-2026-14739: Set a hard limit of 99999 on '?' placeholders</li>
+	    <li>CVE-2026-14740: Fix out-of-bounds read in preparse of SQL that starts with a comment</li>
+	    <li>CVE-2026-14380: Fix code injection via Profile DSN attribute or DBI_PROFILE variable</li>
+      </ul>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2026-15392</cvename>
+      <cvename>CVE-2026-78030</cvename>
+      <cvename>CVE-2026-73193</cvename>
+      <cvename>CVE-2026-73194</cvename>
+      <cvename>CVE-2026-60081</cvename>
+      <cvename>CVE-2026-60082</cvename>
+      <cvename>CVE-2026-15043</cvename>
+      <cvename>CVE-2026-14380</cvename>
+      <cvename>CVE-2026-14740</cvename>
+      <cvename>CVE-2026-14739</cvename>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-15392</url>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-78030</url>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-73193</url>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-73194</url>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-60081</url>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-60082</url>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-15043</url>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-14380</url>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-14740</url>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-14739</url>
+    </references>
+    <dates>
+      <discovery>2026-09-19</discovery>
+      <entry>2026-09-25</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="60eb0bba-b668-11f1-9d0e-4c526214c986">
+    <topic>Erlang/OTP -- multiple vulnerabilities in ssl, ssh and asn1</topic>
+    <affects>
+      <package>
+	<name>erlang</name>
+	<range><lt>28.5.0.7,4</lt></range>
+      </package>
+      <package>
+	<name>erlang-runtime27</name>
+	<range><lt>27.3.4.18</lt></range>
+      </package>
+      <package>
+	<name>erlang-runtime28</name>
+	<range><lt>28.5.0.7</lt></range>
+      </package>
+      <package>
+	<name>erlang-runtime29</name>
+	<range><lt>29.1.1</lt></range>
+      </package>
+    </affects>
+    <description>
+      <body xmlns="http://www.w3.org/1999/xhtml">
+	<p>The Erlang/OTP project reports:</p>
+	<blockquote cite="https://github.com/erlang/otp/security/advisories">
+	  <p>OTP 29.1.1, 28.5.0.7 and 27.3.4.18 fix the following
+	  issues:</p>
+	  <ul>
+	    <li>CVE-2026-89422: TLS 1.3 client skips server
+	    authentication on unsolicited PSK. A pre_shared_key
+	    extension in the ServerHello that the client never offered
+	    causes the client to complete the handshake without
+	    validating the server's certificate.</li>
+	    <li>CVE-2026-68956: SSH session channel exhaustion. The
+	    max_channels daemon option only limited channels with an
+	    active handler, so an authenticated client could open
+	    unlimited idle session channels and exhaust the memory of
+	    the whole Erlang VM.</li>
+	    <li>CVE-2026-65634: Superlinear CPU denial-of-service in
+	    the asn1 OID decoder via large base-128 arcs.</li>
+	  </ul>
+	</blockquote>
+      </body>
+    </description>
+    <references>
+      <cvename>CVE-2026-65634</cvename>
+      <cvename>CVE-2026-68956</cvename>
+      <cvename>CVE-2026-89422</cvename>
+      <url>https://github.com/erlang/otp/security/advisories/GHSA-rgxr-4g4w-j875</url>
+      <url>https://github.com/erlang/otp/security/advisories/GHSA-qhcm-px9c-rvfh</url>
+      <url>https://github.com/erlang/otp/security/advisories/GHSA-qghx-23m5-r55m</url>
+      <url>https://github.com/erlang/otp/releases/tag/OTP-29.1.1</url>
+      <url>https://github.com/erlang/otp/releases/tag/OTP-28.5.0.7</url>
+      <url>https://github.com/erlang/otp/releases/tag/OTP-27.3.4.18</url>
+    </references>
+    <dates>
+      <discovery>2026-09-22</discovery>
+      <entry>2026-09-25</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="bba381b5-b842-11f1-8205-107c614c014e">
+    <topic>p5-Image-ExifTool -- code injection via crafted media</topic>
+    <affects>
+	<package>
+	  <name>p5-Image-ExifTool</name>
+	  <name>p5-Image-ExifTool-devel</name>
+	  <range><lt>13.54</lt></range>
+	</package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<blockquote cite="https://github.com/advisories/GHSA-qjrf-c4wp-pgxx">
+	  <p>ExifTool versions up to 13.53 contain a code injection flaw in
+	  the Process_mrld function of lib/Image/ExifTool/GM.pm, reached
+	  while parsing JPEG, QuickTime, MOV and MP4 files.  When exiftool
+	  is invoked with the -ee (extract embedded) option on a crafted
+	  file, a local attacker with low privileges can inject code that
+	  runs in the Perl runtime context of the exiftool process.</p>
+	  <p>The issue is fixed in ExifTool 13.54.</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2026-7580</cvename>
+      <url>https://nvd.nist.gov/vuln/detail/cve-2026-7580</url>
+      <url>https://github.com/advisories/GHSA-qjrf-c4wp-pgxx</url>
+    </references>
+    <dates>
+      <discovery>2026-05-01</discovery>
+      <entry>2026-09-24</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="050e54b4-b81e-11f1-b540-589cfc10a551">
+    <topic>podman -- vulnerabilities</topic>
+    <affects>
+	<package>
+	<name>podman</name>
+	<range><lt>5.8.7</lt></range>
+	</package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>The Podman developers report:</p>
+	<blockquote cite="https://github.com/podman-container-tools/podman/releases/tag/v5.8.7">
+	  <p>This release addresses (CVE-2025-11395), where importing images
+	  containing crafted layer tarballs with the podman load command, or
+	  importing volumes containing crafted symlinks with podman volume
+	  import, allows overwriting files on the host.</p>
+	  <p>This release also addresses CVE-2026-79699 and CVE-2026-79705,
+	  though we do not believe these CVEs are exploitable through the
+	  Podman command line.</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2025-11395</cvename>
+      <cvename>CVE-2026-79699</cvename>
+      <cvename>CVE-2026-79705</cvename>
+      <url>https://github.com/podman-container-tools/podman/releases/tag/v5.8.7</url>
+    </references>
+    <dates>
+      <discovery>2026-09-16</discovery>
+      <entry>2026-09-24</entry>
+    </dates>
+  </vuln>
+
+  <vuln vid="3f11e437-b7cd-11f1-a883-2cf05da270f3">
+    <topic>Gitlab -- vulnerabilities</topic>
+    <affects>
+<package>
+	<name>gitlab-ce</name>
+	<name>gitlab-ee</name>
+	<range><ge>19.4.0</ge><lt>19.4.1</lt></range>
+	<range><ge>19.3.0</ge><lt>19.3.3</lt></range>
+	<range><ge>13.11.0</ge><lt>19.2.7</lt></range>
+</package>
+    </affects>
+    <description>
+	<body xmlns="http://www.w3.org/1999/xhtml">
+	<p>Gitlab reports:</p>
+	<blockquote cite="https://docs.gitlab.com/releases/patches/patch-release-gitlab-19-4-1-released/?nav=19.4.1">
+	  <p>Double Free issue in Regular Expression Parser impacts GitLab CE/EE</p>
+	  <p>Integer Overflow issue in Regular Expression Compiler impacts GitLab CE/EE</p>
+	  <p>Cross-site Scripting issue in merge request diff viewer impacts GitLab CE/EE</p>
+	  <p>Missing Authorization issue in Duo AI job troubleshooting feature impacts GitLab EE</p>
+	  <p>Incorrect Authorization issue in MCP API scope enforcement impacts GitLab CE/EE</p>
+	  <p>Use of Less Trusted Source issue in Direct Transfer import user mapping impacts GitLab CE/EE</p>
+	  <p>Missing Authorization issue in Epic Issues REST API impacts GitLab CE/EE</p>
+	  <p>Incorrect Authorization issue in Duo Workflow Service token governance enforcement impacts GitLab EE</p>
+	  <p>Improper Access Control issue in GraphQL memberRoles dependentSecurityPolicies resolver impacts GitLab EE</p>
+	  <p>Missing Authorization issue in GraphQL CI job trace API impacts GitLab CE/EE</p>
+	  <p>Race Condition issue in MCP gitlab_search tool impacts GitLab CE/EE</p>
+	</blockquote>
+	</body>
+    </description>
+    <references>
+      <cvename>CVE-2026-89078</cvename>
+      <cvename>CVE-2026-93577</cvename>
+      <cvename>CVE-2026-84739</cvename>
+      <cvename>CVE-2026-92470</cvename>
+      <cvename>CVE-2026-92874</cvename>
+      <cvename>CVE-2026-92530</cvename>
+      <cvename>CVE-2026-8937</cvename>
+      <cvename>CVE-2026-92529</cvename>
+      <cvename>CVE-2026-10518</cvename>
+      <cvename>CVE-2026-4523</cvename>
+      <cvename>CVE-2026-92628</cvename>
+      <url>https://docs.gitlab.com/releases/patches/patch-release-gitlab-19-4-1-released/?nav=19.4.1</url>
+    </references>
+    <dates>
+      <discovery>2026-09-23</discovery>
+      <entry>2026-09-24</entry>
+    </dates>
+  </vuln>
+
   <vuln vid="0142953c-b716-11f1-a70f-00a0980083d7">
     <topic>popt -- Out-of-bounds Write</topic>
     <affects>
