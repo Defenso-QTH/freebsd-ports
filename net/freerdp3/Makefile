@@ -6,6 +6,12 @@ MASTER_SITES=	https://pub.freerdp.com/releases/:freerdp \
 PKGNAMESUFFIX=	3
 DISTFILES=	${DISTNAME}${EXTRACT_SUFX}:freerdp
 
+PATCH_SITES=	https://github.com/FreeRDP/FreeRDP/commit/
+PATCHFILES=	e3596595b86ea27c38de4ecf47045f989cea039a.patch:-p1 \
+		6682e9ca667271b8ba148a301b4a2f9ac78be2b9.patch:-p1 \
+		d15a71e0a2ef264093514934553586c12192dbda.patch:-p1 \
+		e47f3880177b8680ab76bf75aba0732ae1fa5ccd.patch:-p1
+
 MAINTAINER=	vvd@FreeBSD.org
 COMMENT=	Free implementation of Remote Desktop Protocol
 WWW=		https://www.freerdp.com/
