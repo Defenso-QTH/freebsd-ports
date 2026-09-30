@@ -18,6 +18,8 @@
     SUBDIR += R-cran-S7
     SUBDIR += R-cran-TH.data
     SUBDIR += R-cran-abind
+    SUBDIR += R-cran-bigmemory
+    SUBDIR += R-cran-bigmemory.sri
     SUBDIR += R-cran-bindr
     SUBDIR += R-cran-bindrcpp
     SUBDIR += R-cran-bit
@@ -497,6 +499,7 @@
     SUBDIR += compdbgen
     SUBDIR += compiler-rt
     SUBDIR += compiz-bcop
+    SUBDIR += computelibrary
     SUBDIR += concurrencpp
     SUBDIR += concurrencykit
     SUBDIR += concurrentqueue
@@ -6023,6 +6026,7 @@
     SUBDIR += py-pytest-run-parallel
     SUBDIR += py-pytest-services
     SUBDIR += py-pytest-shutil
+    SUBDIR += py-pytest-skip-slow
     SUBDIR += py-pytest-socket
     SUBDIR += py-pytest-subprocess
     SUBDIR += py-pytest-subtests
@@ -6192,7 +6196,6 @@
     SUBDIR += py-scheduler
     SUBDIR += py-schema
     SUBDIR += py-schema-salad
-    SUBDIR += py-schematics-patched
     SUBDIR += py-scholarly
     SUBDIR += py-scikit-base
     SUBDIR += py-scikit-build
@@ -6426,6 +6429,7 @@
     SUBDIR += py-typing-extensions
     SUBDIR += py-typing-inspect
     SUBDIR += py-typing-inspection
+    SUBDIR += py-tyro
     SUBDIR += py-tzdata
     SUBDIR += py-tzlocal
     SUBDIR += py-u-msgpack-python

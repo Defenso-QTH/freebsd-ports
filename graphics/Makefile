@@ -12,6 +12,7 @@
     SUBDIR += R-cran-GDD
     SUBDIR += R-cran-R.devices
     SUBDIR += R-cran-RColorBrewer
+    SUBDIR += R-cran-bmp
     SUBDIR += R-cran-colorspace
     SUBDIR += R-cran-cowplot
     SUBDIR += R-cran-diagram
@@ -817,6 +818,7 @@
     SUBDIR += pcdtojpeg
     SUBDIR += pcl-pointclouds
     SUBDIR += pdf2svg
+    SUBDIR += pdfium
     SUBDIR += pdfpc
     SUBDIR += pear-Horde_Image
     SUBDIR += pear-Image_3D

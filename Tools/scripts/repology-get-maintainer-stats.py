@@ -27,12 +27,13 @@ def check_dependencies() -> None:
         if importlib.util.find_spec(module) is None:
             missing.append(package)
     if missing:
+        pkg_prefix = f" py{sys.version_info.major}{sys.version_info.minor}-"
         print(
             "Error: missing required package(s): " + ", ".join(missing),
             file=sys.stderr,
         )
         print(
-            "Install with: sudo pkg install " + " ".join(missing),
+            f"Install with: sudo pkg install{pkg_prefix}" + pkg_prefix.join(missing),
             file=sys.stderr,
         )
         sys.exit(1)
@@ -103,7 +104,8 @@ def extract_freebsd_stats(html: str) -> dict[str, str]:
 
     freebsd_row = None
     total_row = None
-    for row in table.find("tbody").find_all("tr"):
+    tbody = table.find("tbody") or table
+    for row in tbody.find_all("tr"):
         cells = row.find_all(["td", "th"])
         if not cells:
             continue
@@ -121,12 +123,21 @@ def extract_freebsd_stats(html: str) -> dict[str, str]:
         )
         sys.exit(1)
 
-    # Cells layout: Repository, Packages, Projects Total, Newest, Newest%,
-    # Outdated, Outdated%, Problematic, Problematic%, Potentially vulnerable,
+    # Repology collapses empty (count, percentage) pairs into a single cell
+    # with colspan=2. Expand those cells so each logical column has its own
+    # entry: Repository, Packages, Projects Total, Newest, Newest%, Outdated,
+    # Outdated%, Problematic, Problematic%, Potentially vulnerable,
     # Potentially vulnerable%, Other lists, Feeds.
-    # We extract the first 11 meaningful cells.
-    texts = [_cell_text(c) for c in row]
-    if len(texts) < 11:
+    def _expand_cells(cells):
+        expanded = []
+        for cell in cells:
+            text = _cell_text(cell).strip()
+            colspan = int(cell.get("colspan", 1) or 1)
+            expanded.extend([text] * colspan)
+        return expanded
+
+    texts = _expand_cells(row)
+    if len(texts) < 13:
         print(
             "Error: unexpected table row format on repology.org.",
             file=sys.stderr,
