@@ -129,6 +129,9 @@ jobs:
       # in that case, as the Linux code does, and fails with a message
       # rather than a dead VT when nothing can be done.  PORTREVISION is
       # bumped, so the pre-seeded 21.1.24,1 binary is superseded.
+      # www/pnpm runs on node22, which poudriere must have as a package to
+      # build it.  node22 is pre-seeded below: compiled from source it took
+      # the bulk from ~40 minutes to over three hours, most of the job limit.
       #
       # == the ports pin ==
       # Fail fast when the ports pin has drifted from pkg.freebsd.org.
@@ -319,7 +322,7 @@ jobs:
                 xcb-util-keysyms libX11 libXext libXdmcp libXau \
                 glib wlroots020 \
                 xorg-server \
-                meson ninja gmake pkgconf \
+                meson ninja gmake pkgconf node22 \
                 glslang spirv-tools spirv-headers evdev-proto hwdata scdoc \
                 py312-fido2 py312-hidapi py312-poetry py312-poetry-core py312-tqdm \
                 py312-intelhex py312-pyusb py312-cffi py312-crcmod \
