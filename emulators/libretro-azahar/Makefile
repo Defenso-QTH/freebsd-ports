@@ -1,4 +1,5 @@
 PORTNAME=	azahar
+PORTREVISION=	2
 PKGNAMEPREFIX=	libretro-
 
 COMMENT=	Libretro core for Azahar 3DS emulator

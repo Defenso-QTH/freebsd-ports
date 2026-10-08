@@ -369,6 +369,7 @@
     SUBDIR += linklint
     SUBDIR += links
     SUBDIR += links1
+    SUBDIR += linkwarden
     SUBDIR += linux-brave
     SUBDIR += linux-c7-qtwebkit
     SUBDIR += linux-chrome
@@ -381,6 +382,7 @@
     SUBDIR += linux-vieb
     SUBDIR += linux-widevine-cdm
     SUBDIR += litmus
+    SUBDIR += littlefedi
     SUBDIR += ljdeps
     SUBDIR += llhttp
     SUBDIR += loco
@@ -574,7 +576,6 @@
     SUBDIR += osticket
     SUBDIR += ot-recorder
     SUBDIR += otrs
-    SUBDIR += otter-browser
     SUBDIR += owncast
     SUBDIR += owncloud
     SUBDIR += p5-AMF-Perl
@@ -1599,7 +1600,6 @@
     SUBDIR += py-dj60-django-redis
     SUBDIR += py-dj60-django-rich
     SUBDIR += py-dj60-django-storages
-    SUBDIR += py-dj60-django-stubs-ext
     SUBDIR += py-dj60-django-tables2
     SUBDIR += py-dj60-django-taggit
     SUBDIR += py-dj60-django-timezone-field
@@ -1937,6 +1937,8 @@
     SUBDIR += py-pyramid-mako
     SUBDIR += py-pyramid_rpc
     SUBDIR += py-pysmartdl
+    SUBDIR += py-pytauri
+    SUBDIR += py-pytauri-wheel
     SUBDIR += py-python-digitalocean
     SUBDIR += py-python-dotenv
     SUBDIR += py-python-fasthtml
@@ -1947,7 +1949,6 @@
     SUBDIR += py-pywikibot
     SUBDIR += py-pywry
     SUBDIR += py-qh3
-    SUBDIR += py-qt5-webengine
     SUBDIR += py-qt6-webengine
     SUBDIR += py-quart
     SUBDIR += py-quart-trio
@@ -1971,6 +1972,7 @@
     SUBDIR += py-requests_ntlm
     SUBDIR += py-respx
     SUBDIR += py-restclient
+    SUBDIR += py-retry-requests
     SUBDIR += py-rfc3986
     SUBDIR += py-rfc3987
     SUBDIR += py-rfc3987-syntax
@@ -2061,7 +2063,6 @@
     SUBDIR += qdecoder
     SUBDIR += qhttpengine
     SUBDIR += qt5-webchannel
-    SUBDIR += qt5-webengine
     SUBDIR += qt5-webglplugin
     SUBDIR += qt5-websockets
     SUBDIR += qt5-websockets-qml
@@ -2597,8 +2598,6 @@
     SUBDIR += snarf
     SUBDIR += so
     SUBDIR += sogo
-    SUBDIR += sogo2
-    SUBDIR += sogo2-activesync
     SUBDIR += spawn-fcgi
     SUBDIR += spreadlogd
     SUBDIR += sqlpage

@@ -129,7 +129,6 @@
     SUBDIR += gnu-cobol
     SUBDIR += gnustep-base
     SUBDIR += go
-    SUBDIR += go125
     SUBDIR += go126
     SUBDIR += go127
     SUBDIR += gomacro
@@ -154,7 +153,6 @@
     SUBDIR += hs-unlambda
     SUBDIR += huc
     SUBDIR += inko
-    SUBDIR += intel-compute-runtime
     SUBDIR += intercal
     SUBDIR += io
     SUBDIR += io-devel
@@ -170,7 +168,6 @@
     SUBDIR += kefir
     SUBDIR += kf5-kross
     SUBDIR += kotlin
-    SUBDIR += kotlin22
     SUBDIR += kturtle
     SUBDIR += lafontaine
     SUBDIR += lci
@@ -313,7 +310,6 @@
     SUBDIR += python2
     SUBDIR += python27
     SUBDIR += python3
-    SUBDIR += python310
     SUBDIR += python311
     SUBDIR += python312
     SUBDIR += python313

@@ -57,7 +57,6 @@
     SUBDIR += ffmpeg
     SUBDIR += ffmpeg3
     SUBDIR += ffmpeg4
-    SUBDIR += ffmpeg6
     SUBDIR += ffmpegthumbnailer
     SUBDIR += ffms2
     SUBDIR += ffnvcodec-headers
@@ -269,7 +268,6 @@
     SUBDIR += oggvideotools
     SUBDIR += ogmtools
     SUBDIR += olive
-    SUBDIR += onevpl
     SUBDIR += openh264
     SUBDIR += openshot
     SUBDIR += opentimelineio
@@ -312,7 +310,6 @@
     SUBDIR += py-mido
     SUBDIR += py-moviepy
     SUBDIR += py-opentimelineio
-    SUBDIR += py-periscope
     SUBDIR += py-pretty_midi
     SUBDIR += py-pymediainfo
     SUBDIR += py-pysubs2

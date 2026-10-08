@@ -54,7 +54,6 @@
     SUBDIR += ansifilter
     SUBDIR += antiword
     SUBDIR += apache-commons-csv
-    SUBDIR += apache-commons-digester
     SUBDIR += apache-poi
     SUBDIR += apache-solr
     SUBDIR += apache-xmlbeans
@@ -253,7 +252,6 @@
     SUBDIR += go-transifex-client
     SUBDIR += go-yq
     SUBDIR += gojq
-    SUBDIR += goldendict
     SUBDIR += goldendict-ng
     SUBDIR += google-ctemplate
     SUBDIR += google-translate
@@ -427,7 +425,6 @@
     SUBDIR += libsphinxclient
     SUBDIR += libstaroffice
     SUBDIR += libstree
-    SUBDIR += libtextcat
     SUBDIR += libtranslate
     SUBDIR += libtre
     SUBDIR += libucl
@@ -1615,6 +1612,7 @@
     SUBDIR += py-pdfrw
     SUBDIR += py-pdftotext
     SUBDIR += py-petl
+    SUBDIR += py-phonemizer
     SUBDIR += py-phonemizer-fork
     SUBDIR += py-pikepdf
     SUBDIR += py-precis_i18n
@@ -1875,7 +1873,6 @@
     SUBDIR += redet
     SUBDIR += redisearch
     SUBDIR += redisearch2
-    SUBDIR += redisearch22
     SUBDIR += redisearch24
     SUBDIR += redisearch26
     SUBDIR += redisearch28

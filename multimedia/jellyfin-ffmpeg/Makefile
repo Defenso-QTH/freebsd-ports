@@ -1,5 +1,5 @@
 PORTNAME=	jellyfin-ffmpeg
-PORTVERSION=	8.1.2.5
+PORTVERSION=	8.1.3.1
 PORTREVISION=	1
 CATEGORIES=	multimedia
 
