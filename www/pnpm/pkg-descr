@@ -1,8 +1,0 @@
-pnpm is a fast, disk space efficient package manager for Node.js.  Packages
-are stored once in a content-addressable store and linked into each project's
-node_modules, so repeated dependencies are not duplicated on disk.  It uses a
-strict, non-flat node_modules layout that only exposes declared dependencies,
-and supports workspaces for monorepos.
-
-This port installs the 10.x release line, the last pure-JavaScript major, run
-through the node22 interpreter.
