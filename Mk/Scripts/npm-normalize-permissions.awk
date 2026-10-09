@@ -19,6 +19,12 @@ function oct2dec(octstr, i, c, val) {
 		exec_bits = 73				# 0o111
 		special_bits = 3584			# 0o7000
 		special = and(mode, special_bits)
+		# On a directory these bits come from where the archive was
+		# made, not from the packages: the setgid of a parent directory
+		# propagates to new directories on ZFS but not on UFS.
+		if ($0 ~ /type=dir/) {
+			special = 0
+		}
 		if (and(mode, exec_bits) != 0) {
 			newmode = or(special, 493)	# 0o755
 		} else {
