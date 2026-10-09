@@ -2588,6 +2588,7 @@
     SUBDIR += sarg
     SUBDIR += scloader
     SUBDIR += script4rss
+    SUBDIR += seerr
     SUBDIR += selenium
     SUBDIR += serendipity
     SUBDIR += serf
