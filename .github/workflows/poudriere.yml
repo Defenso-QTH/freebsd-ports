@@ -213,6 +213,8 @@ jobs:
           copyback: true
           run: |
             set -eux
+            T0=$(date +%s)
+            mark() { echo "$(( $(date +%s) - T0 ))s $1" >> /tmp/phases; }
             export ASSUME_ALWAYS_YES=yes
 
             # Pre-seed from pkg.freebsd.org *latest* (not the VM's quarterly
@@ -243,6 +245,7 @@ jobs:
             swapon /dev/md0
 
             pkg install -y poudriere git
+            mark setup
 
             # Write the RSA private key for signing the pkg repo catalogue.
             printf '%s' '${{ secrets.PKG_REPO_SIGNING_KEY }}' \
@@ -287,6 +290,7 @@ jobs:
             # build jail (downloads 15.1-RELEASE base) + register the ports tree
             poudriere jail -c -j j151 -v 15.1-RELEASE -a amd64
             poudriere ports -c -p local -m null -M /poudriere-ports
+            mark jail
 
             # Pre-seed heavy binary packages from pkg.freebsd.org.  Because .git
             # was stripped above, poudrière compares plain version strings and
@@ -356,6 +360,7 @@ jobs:
             find /var/cache/pkg -name '*.pkg' \
                 -exec cp -f {} ${PKGDIR}/ \; 2>/dev/null || true
             echo "Packages in All/: $(ls ${PKGDIR}/*.pkg 2>/dev/null | wc -l)"
+            mark preseed
 
             # ensure_pkg_installed (common.sh:10381) checks for Latest/pkg.pkg
             # (PKG_BIN=/.p/pkg-static, extracted from Latest/pkg.pkg via tar).
@@ -394,6 +399,7 @@ jobs:
             # to reliably survive GitHub's 10 GB eviction, so we can't rely on it
             # carrying pkg-2.8.1_1 forward).
             poudriere bulk -j j151 -p local ports-mgmt/pkg || true
+            mark pkg
             find /var/cache/pkg -name '*.pkg' \
                 -exec cp -f {} ${PKGDIR}/ \; 2>/dev/null || true
 
@@ -479,10 +485,17 @@ jobs:
                 exit 1
             fi
             echo "pin check: tree matches the pre-seeded binaries"
+            mark guard
 
             set +e
             poudriere bulk -j j151 -p local -J 2 -f /tmp/pkglist
             BULK_EXIT=$?
+            mark bulk
+            # What the bulk compiled and for how long, slowest first: a
+            # port here that pkg.freebsd.org serves is a pre-seed candidate.
+            B=/poudriere/data/logs/bulk/j151-local/latest/.poudriere.ports.built
+            T=$( { cat /tmp/phases; [ -f $B ] && sort -k3nr $B | awk '{printf "%dm%02ds %s\n", $3/60, $3%60, $1}'; } | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/%0A/g')
+            echo "::notice title=Build times::${T}"
             set -e
 
             # collect per-port error logs; also cat them so the error is
