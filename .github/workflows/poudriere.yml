@@ -511,6 +511,10 @@ jobs:
                     cp "$f" build-logs/
                     echo "=== $(basename $f) ==="
                     tail -100 "$f"
+                    # the job log is not readable by everyone; annotations are
+                    E=$(tail -40 "$f" | sed -e 's/%/%25/g' -e 's/\r//g' \
+                        -e ':a' -e 'N' -e '$!ba' -e 's/\n/%0A/g')
+                    echo "::error title=$(basename $f)::${E}"
                 done
             fi
 
