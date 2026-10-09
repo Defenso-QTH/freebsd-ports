@@ -1,0 +1,17 @@
+[
+{ type: install
+  message: <<EOM
+To start Seerr:
+
+  # sysrc seerr_enable=YES
+  # service seerr start
+
+then finish the setup in a browser at http://<host>:5055/.
+
+The settings, the SQLite database and the logs live in /var/db/seerr
+(seerr_datadir in rc.conf).  To use PostgreSQL instead, set DB_TYPE and
+the DB_* variables described at https://docs.seerr.dev/ through
+seerr_env.
+EOM
+}
+]

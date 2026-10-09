@@ -1,0 +1,6 @@
+Seerr is an open-source media request and discovery manager for Jellyfin,
+Plex, and Emby.  It integrates with Sonarr and Radarr, offers user
+management and a customizable request workflow, and serves a web UI
+(default port 5055) backed by SQLite or PostgreSQL.
+
+Seerr is a community continuation of Overseerr/Jellyseerr.
