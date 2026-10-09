@@ -30,10 +30,13 @@ load_rc_config $name
 : ${seerr_datadir:="/var/db/seerr"}
 : ${seerr_port:="5055"}
 
+# The pidfile names the daemon(8) supervisor rather than node: stop then
+# waits until the supervisor has reaped node and removed the pidfile, so
+# that a restart does not find the old pid and refuse to start.
 pidfile="/var/run/${name}/${name}.pid"
-procname="%%LOCALBASE%%/bin/node"
 command="/usr/sbin/daemon"
-command_args="-f -p ${pidfile} -t ${name} ${procname} %%WWWDIR%%/dist/index.js"
+command_args="-f -P ${pidfile} -t ${name} %%LOCALBASE%%/bin/node \
+    %%WWWDIR%%/dist/index.js"
 # next serves the application from the current directory
 seerr_chdir="%%WWWDIR%%"
 seerr_env="NODE_ENV=production CONFIG_DIRECTORY=${seerr_datadir} \

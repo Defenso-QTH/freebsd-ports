@@ -1,6 +1,7 @@
 PORTNAME=	seerr
 DISTVERSIONPREFIX=	v
 DISTVERSION=	3.5.0
+PORTREVISION=	1
 CATEGORIES=	www
 
 MAINTAINER=	quentin.thebault@defenso.fr
