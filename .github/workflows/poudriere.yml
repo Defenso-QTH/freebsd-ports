@@ -387,38 +387,6 @@ jobs:
                     && echo "  OK: ${p}" || echo "  MISSING: ${p}"
             done
 
-            # Two-phase build to avoid a 27-min cmake-core rebuild.  Our
-            # main-resynced tree is ahead of pkg.freebsd.org *latest* on pkg
-            # (tree wants pkg-2.8.1_1; latest serves 2.7.5, which the pre-seed
-            # fetches).  poudrière's stale-package prune runs *before* it builds
-            # anything, so on a single bulk it deletes the pre-seeded cmake-core
-            # ("missing dependency: pkg-2.8.1_1") and rebuilds it from source
-            # (~27 min, ~90% of the run).  Instead:
-            #   1. Build the tree's pkg on its own (~2 min) so pkg-2.8.1_1 exists.
-            #   2. Re-seed the fetched binaries (the phase-1 prune removed
-            #      cmake-core; put it back) now that pkg-2.8.1_1 is available.
-            #   3. Main bulk: its prune now finds pkg-2.8.1_1 and keeps cmake-core.
-            # Deterministic and cache-independent (the actions/cache is too large
-            # to reliably survive GitHub's 10 GB eviction, so we can't rely on it
-            # carrying pkg-2.8.1_1 forward).
-            #
-            # graphics/libdrm goes through the same dance.  It builds the same
-            # version string as upstream (2.4.134,1) so that the pre-seeded
-            # mesa, ffmpeg and libva, which record exactly that dependency,
-            # are kept.  But the pre-seeded *unpatched* libdrm would satisfy
-            # poudriere too and ours would never be built, losing the
-            # drmParsePciDeviceInfo / drmGetMinorType sysctl fallbacks.  So
-            # delete it and build ours in phase 1, then re-seed everything
-            # except libdrm.  Deleting it right before the main bulk instead
-            # made that bulk's prune discard mesa, ffmpeg, libva and all
-            # that depends on them (sdl2, libheif, vips, ImageMagick7) and
-            # compile them from source: 47 ports, over an hour.
-            rm -f ${PKGDIR}/libdrm-*.pkg
-            poudriere bulk -j j151 -p local ports-mgmt/pkg graphics/libdrm || true
-            mark pkg
-            find /var/cache/pkg -name '*.pkg' ! -name 'libdrm-[0-9]*' \
-                -exec cp -f {} ${PKGDIR}/ \; 2>/dev/null || true
-
             # What this list contains and why: see the notes above the step.
             # net/freerdp3 is built here while it carries the urbdrc claim fix
             # from Defenso-QTH/FreeRDP (FreeRDP issue 13744).  Drop it again
@@ -495,6 +463,38 @@ jobs:
             fi
             echo "pin check: tree matches the pre-seeded binaries"
             mark guard
+
+            # Two-phase build to avoid a 27-min cmake-core rebuild.  Our
+            # main-resynced tree is ahead of pkg.freebsd.org *latest* on pkg
+            # (tree wants pkg-2.8.1_1; latest serves 2.7.5, which the pre-seed
+            # fetches).  poudrière's stale-package prune runs *before* it builds
+            # anything, so on a single bulk it deletes the pre-seeded cmake-core
+            # ("missing dependency: pkg-2.8.1_1") and rebuilds it from source
+            # (~27 min, ~90% of the run).  Instead:
+            #   1. Build the tree's pkg on its own (~2 min) so pkg-2.8.1_1 exists.
+            #   2. Re-seed the fetched binaries (the phase-1 prune removed
+            #      cmake-core; put it back) now that pkg-2.8.1_1 is available.
+            #   3. Main bulk: its prune now finds pkg-2.8.1_1 and keeps cmake-core.
+            # Deterministic and cache-independent (the actions/cache is too large
+            # to reliably survive GitHub's 10 GB eviction, so we can't rely on it
+            # carrying pkg-2.8.1_1 forward).
+            #
+            # graphics/libdrm goes through the same dance.  It builds the same
+            # version string as upstream (2.4.134,1) so that the pre-seeded
+            # mesa, ffmpeg and libva, which record exactly that dependency,
+            # are kept.  But the pre-seeded *unpatched* libdrm would satisfy
+            # poudriere too and ours would never be built, losing the
+            # drmParsePciDeviceInfo / drmGetMinorType sysctl fallbacks.  So
+            # delete it and build ours in phase 1, then re-seed everything
+            # except libdrm.  Deleting it right before the main bulk instead
+            # made that bulk's prune discard mesa, ffmpeg, libva and all
+            # that depends on them (sdl2, libheif, vips, ImageMagick7) and
+            # compile them from source: 47 ports, over an hour.
+            rm -f ${PKGDIR}/libdrm-*.pkg
+            poudriere bulk -j j151 -p local ports-mgmt/pkg graphics/libdrm || true
+            mark pkg
+            find /var/cache/pkg -name '*.pkg' ! -name 'libdrm-[0-9]*' \
+                -exec cp -f {} ${PKGDIR}/ \; 2>/dev/null || true
 
             set +e
             poudriere bulk -j j151 -p local -J 2 -f /tmp/pkglist
