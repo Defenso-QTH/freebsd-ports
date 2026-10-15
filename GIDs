@@ -343,9 +343,9 @@ tiarra:*:398:
 linkwarden:*:399:
 evcc:*:400:
 spectrumknx:*:401:
-seerr:*:402:
-# free: 403
-# free: 404
+lid_switchd:*:402:
+airplane_radiosd:*:403:
+seerr:*:404:
 # free: 405
 # free: 406
 # free: 407

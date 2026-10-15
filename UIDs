@@ -348,9 +348,9 @@ tiarra:*:398:398::0:0:Tiarra IRC Proxy:/nonexistent:/usr/sbin/nologin
 linkwarden:*:399:399::0:0:Linkwarden Daemon:/var/db/linkwarden:/usr/sbin/nologin
 evcc:*:400:400::0:0:evcc Daemon:/nonexistent:/usr/sbin/nologin
 spectrumknx:*:401:401::0:0:SpectrumKNX Daemon:/var/db/spectrumknx:/usr/sbin/nologin
-seerr:*:402:402::0:0:Seerr Daemon:/nonexistent:/usr/sbin/nologin
+# free: 402
 # free: 403
-# free: 404
+seerr:*:404:404::0:0:Seerr Daemon:/nonexistent:/usr/sbin/nologin
 # free: 405
 # free: 406
 # free: 407

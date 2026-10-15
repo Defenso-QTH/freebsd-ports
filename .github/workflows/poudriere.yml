@@ -166,15 +166,17 @@ jobs:
       # the packages built weeks ago.  Counting packages per hash cannot
       # see this and points at whichever build happened to be largest.
       #
-      # Current pin: this branch is rebased onto upstream ab9b0dae6a5e
-      # (build of 2026-09-15).  The hash histogram at the time:
+      # Current pin: this branch is rebased onto upstream 3a3ea9a0eb
+      # (build of 2026-10-13).  The hash histogram at the time:
       #
-      #   e66ef70ebb  12139 pkgs  built 2026-08-27   <- "dominant"
-      #   5c01d7a330   9625 pkgs  built 2026-09-08
-      #   e26b1e4bc8   6746 pkgs  built 2026-09-10
-      #   ab9b0dae6a   4285 pkgs  built 2026-09-15   <- newest, correct
-      #   08bf855260   4053 pkgs  built 2026-09-13   <- previous pin
+      #   67f48ac8ea  18819 pkgs  built 2026-10-04   <- "dominant"
+      #   3a3ea9a0eb  15831 pkgs  built 2026-10-13   <- newest, correct
+      #   930789a27e   2973 pkgs  built 2026-10-09
+      #   082d07dd33    519 pkgs  built 2026-10-08
+      #   0b23c55e5d    276 pkgs  built 2026-10-05   <- previous pin
       #
+      # The same mistake on the 2026-09-15 pin: the dominant e66ef70ebb
+      # dated from 2026-08-27, the newest build ab9b0dae6a from 09-15.
       # Run 183 died on the 08bf855260 pin two days after it was set:
       # the 09-15 build moved libbluray 1.5.0,1 -> 1.5.1,1, libsoup3
       # 3.7.1 -> 3.7.3, py312-tqdm 4.70.0 -> 4.70.1 and shaderc 2026.3
