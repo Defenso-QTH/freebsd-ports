@@ -331,6 +331,7 @@ jobs:
                 xorg-server \
                 meson ninja gmake pkgconf node22 corepack jq vips \
                 glslang spirv-tools spirv-headers evdev-proto hwdata scdoc \
+                freerdp3 \
                 py312-fido2 py312-hidapi py312-poetry py312-poetry-core py312-tqdm \
                 py312-intelhex py312-pyusb py312-cffi py312-crcmod \
                 py312-protobuf py312-semver py312-tlv8 py312-pyserial \
@@ -417,7 +418,10 @@ jobs:
                 -exec cp -f {} ${PKGDIR}/ \; 2>/dev/null || true
 
             # What this list contains and why: see the notes above the step.
-            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nx11/virglrenderer\nx11-servers/xorg-server\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\nsysutils/fbdamage-repro\nwww/seerr\ngraphics/gpu-firmware-amd-kmod@gc_11_0_1\ngraphics/gpu-firmware-amd-kmod@psp_13_0_4\ngraphics/gpu-firmware-amd-kmod@sdma_6_0_1\ngraphics/gpu-firmware-amd-kmod@vcn_4_0_2\ngraphics/gpu-firmware-amd-kmod@dcn_3_1_4\n' > /tmp/pkglist
+            # net/freerdp3 is built here while it carries the urbdrc claim fix
+            # from Defenso-QTH/FreeRDP (FreeRDP issue 13744).  Drop it again
+            # once pkg.freebsd.org latest has a release with the fix.
+            printf 'ports-mgmt/pkg\ngraphics/drm-612-kmod\ngraphics/libdrm\nx11/libinput\nx11/virglrenderer\nx11-servers/xorg-server\nnet/freerdp3\nsysutils/vm-bhyve\nsysutils/bhyve-viewer\nsysutils/fbdamage-repro\nwww/seerr\ngraphics/gpu-firmware-amd-kmod@gc_11_0_1\ngraphics/gpu-firmware-amd-kmod@psp_13_0_4\ngraphics/gpu-firmware-amd-kmod@sdma_6_0_1\ngraphics/gpu-firmware-amd-kmod@vcn_4_0_2\ngraphics/gpu-firmware-amd-kmod@dcn_3_1_4\n' > /tmp/pkglist
             # gpu-firmware-amd-kmod is flavoured, one package per GPU IP
             # block, so only the five Phoenix (gfx1103, Radeon 780M, device
             # 0x15bf) blocks are built rather than the ~130 in FLAVORS:
@@ -529,7 +533,7 @@ jobs:
             # pkg.freebsd.org configured.
             PKGDIR=/poudriere/data/packages/j151-local/All
             rm -rf repo && mkdir -p repo/All
-            for p in drm-612-kmod libudev-devd libdrm libdrm-devel libinput seatd wlroots020 virglrenderer vulkan-loader vulkan-headers libepoll-shim vm-bhyve bhyve-viewer xorg-server fbdamage-repro gpu-firmware-amd-kmod seerr; do
+            for p in drm-612-kmod libudev-devd libdrm libdrm-devel libinput seatd wlroots020 virglrenderer vulkan-loader vulkan-headers libepoll-shim vm-bhyve bhyve-viewer xorg-server freerdp3 fbdamage-repro gpu-firmware-amd-kmod seerr; do
                 cp ${PKGDIR}/${p}-*.pkg repo/All/ 2>/dev/null || true
             done
             # The retired virglrenderer-mvisor fork lingers in poudriere's
@@ -571,7 +575,7 @@ jobs:
             # leave that one alone.
             MISSING=""
             for p in drm-612-kmod libdrm virglrenderer xorg-server \
-                     vm-bhyve bhyve-viewer seerr \
+                     vm-bhyve bhyve-viewer seerr freerdp3 \
                      gpu-firmware-amd-kmod-gc-11-0-1; do
                 ls repo/All/${p}-[0-9]*.pkg >/dev/null 2>&1 || \
                     MISSING="${MISSING} ${p}"
